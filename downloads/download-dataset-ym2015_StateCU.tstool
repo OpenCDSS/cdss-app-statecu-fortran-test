@@ -1,0 +1,21 @@
+# Download and unzip CDSS ym2015_StateCU dataset:
+# - sometimes the website is offline or URL changes and an HTML error page is returned,
+#   so check the file size
+#
+# =====================================================================
+# Download dataset:
+# - use the same local file as if the download was performed manually
+# - it is up to the State and modelers to be consistent with naming
+# - as of 2021-08-15 the zip file is 2.7 MB
+SetProperty(PropertyName="DownloadZipFile",PropertyType=String,PropertyValue="datasets/ym2015_StateCU.zip")
+WebGet(URI="https://dnrweblink.state.co.us/cwcb/0/doc/199990/Electronic.aspx?searchid=625e6e08-1aa8-4afc-a3a3-2541a4bb9a2f",LocalFile="${DownloadZipFile}",ResponseCodeProperty="WebGetHttpCode")
+CheckFile(InputFile="${DownloadZipFile}",IfNotFound="Fail",Statistic="FileSizeBytes",CheckCriteria="<",CheckValue1=1000000,IfCriteriaMet=Fail,CheckResultPropertyName="DownloadStatus",CriteriaMetPropertyValue="Failure",CriteriaNotMetPropertyValue="Success")
+If(Name="If_DownloadOK",Condition="${DownloadStatus} == Failure")
+Message(Message="Download failed.  Exiting without unzipping.",CommandStatus=FAILURE)
+Exit()
+EndIf(Name="If_DownloadOK")
+# Unzip to the standard dataset folder for StateCU model files:
+# - there will be multiple folders, with "StateCU" being the main folder
+# - to ensure that the files are current, delete existing
+# - since the delete operation is destructive, prompt for confirmation
+UnzipFile(InputFile="${DownloadZipFile}",OutputFolder="../test/datasets/ym2015_StateCU/0-dataset",RemoveOutputFolder=TrueWithPrompt)

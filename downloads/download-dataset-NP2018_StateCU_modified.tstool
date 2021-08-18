@@ -1,0 +1,21 @@
+# Download and unzip CDSS StateCU NP2018_StateCU_modified dataset:
+# - sometimes the website is offline or URL changes and an HTML error page is returned,
+#   so check the file size
+#
+# =====================================================================
+# Download the dataset:
+# - use the same local file as if the download was performed manually
+# - it is up to the State and modelers to be consistent with naming
+# - as of 2021-08-15 the zip file is 60 MB
+SetProperty(PropertyName="DownloadZipFile",PropertyType=String,PropertyValue="datasets/NP2018_StateCU_modified.zip")
+WebGet(URI="https://dnrftp.state.co.us/CDSS/ModelFiles/StateCU/NP2018_StateCU_modified.zip",LocalFile="${DownloadZipFile}",ResponseCodeProperty="WebGetHttpCode")
+CheckFile(InputFile="${DownloadZipFile}",IfNotFound="Fail",Statistic="FileSizeBytes",CheckCriteria="<",CheckValue1=1000000,IfCriteriaMet=Fail,CheckResultPropertyName="DownloadStatus",CriteriaMetPropertyValue="Failure",CriteriaNotMetPropertyValue="Success")
+If(Name="If_DownloadOK",Condition="${DownloadStatus} == Failure")
+Message(Message="Download failed.  Exiting without unzipping.",CommandStatus=FAILURE)
+Exit()
+EndIf(Name="If_DownloadOK")
+# Unzip to the standard dataset folder for StateCU model files:
+# - there will be multiple folders, with "StateCU" being the main folder
+# - to ensure that the files are current, delete existing
+# - since the delete operation is destructive, prompt for confirmation
+UnzipFile(InputFile="${DownloadZipFile}",OutputFolder="../test/datasets/NP2018_StateCU_modified/0-dataset",RemoveOutputFolder=TrueWithPrompt)

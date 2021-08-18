@@ -1,52 +1,44 @@
 # List of files to ignore globally in the repository
 
-# Temporary editor files
-
+# Temporary 'vim' editor files.
 *.swp
 *.swo
 
-# Temporary Windows files
+# Temporary Windows files.
 ~$*
 
-# Products of compiling software (but need to be careful if library dependencies are included)
-*.o
-*.obj
+# General exclusions.
 *.exe
-*.lib
-*.a
-*.so
 *.log
 
-# Ignore all StateMod binary and report output files
-# - these files are created by StateMod
+# Ignore all StateCU binary and report output files:
+# - these files are created by StateCU
 # - might to be a bit more nuanced if any of these files are needed in tests stored in this repository
-*.chk
-*.tmp
+
+*.BD1
+*.cir
+*.ddc
+*.def
+*.dwb
+*.log
+*.obc
+*.sum
+*.swb
+*.wsl
 fort.*
-*.b43
-*.b44
-*.b45
-*.b47
-*.b67
-*.b68
-*.xbe
-*.xbg
-*.xbi
-*.xbm
-*.xca
-*.xcb
-*.xcd
-*.xci
-*.xcw
-*.xdd
-*.xgn
-*.xir
-*.xop
-*.xou
-*.xpl
-*.xre
-*.xrh
-*.xri
-*.xss
-*.xtb
-*.xwr
+season.csv
+
+# Specific folders that should be ignored:
+# - downloads are large and dynamic
+# - datasets are large and dynamic
+# - ignore except for README.md that explains folders
+
+# Downloads.
+/downloads/datasets/*
+!/downloads/datasets/README.md
+/downloads/executables/*
+!/downloads/executables/README.md
+
+# Datasets.
+/test/datasets/*
+!/test/datasets/README.md
