@@ -9,23 +9,124 @@
 
 # Supporting functions, alphabetized...
 
-# List the download datasets.
+# List the download datasets:
+# - specify the first parameter as:
+#     "numbered" to number and indent
+#     "indented" to indent
+#     "raw" no indent and no number
+# - TODO smalers 2021-08-18 may allow specifying a pattern to match for executable names
 listDownloadDatasets() {
+  local format
+  local fileCount
+
+  format="raw"
+  if [ $# -gt 0 ]; then
+    format="${1}"
+  fi
   logText ""
   logText "Downloaded datasets in:  ${downloadsDatasetsFolder}"
-  'ls' -1 ${downloadsDatasetsFolder} | grep -v README.md | awk '{printf("  %s\n", $0)}'
+  'ls' -1 ${downloadsDatasetsFolder} | grep -v README.md | awk -v format=${format} '
+     BEGIN {
+       line = 0
+     }
+     {
+       line = line + 1
+       if ( format == "numbered" ) {
+         # Print with line numbers and indent.
+         printf("  %d - %s\n", line, $0)
+       }
+       else if ( format == "indented" ) {
+         # Print with no line numbers and indent.
+         printf("  %s\n", $0)
+       }
+       else {
+         # Print with no line numbers and no indent.
+         printf("%s\n", $0)
+       }
+
+     }'
+
+  # Return the number of files:
+  # - use the same filters as above
+  # - mainly want to know if non-zero
+  fileCount=$('ls' -1 ${downloadsDatasetsFolder} | grep -v README.md | wc -l)
+  return ${fileCount}
 }
 
-# List the download executables.
+# List downloads/executables folder contents with line numbers.
+# The number can then be entered to select an executable.
+# - specify the first parameter as:
+#     "numbered" to number and indent
+#     "indented" to indent
+#     "raw" no indent and no number
+# - TODO smalers 2021-08-18 may allow specifying a pattern to match for executable names
 listDownloadExecutables() {
-  logText ""
-  logText "Downloaded executables in:  ${downloadsExecutablesFolder}"
-  'ls' -1 ${downloadsExecutablesFolder} | grep -v README.md | awk '{printf("  %s\n", $0)}'
+  local format
+  local fileCount
+
+  format="raw"
+  # Brute force parse since can be 0, 1, or 2 parameters.
+  if [ $# -gt 0 ]; then
+    format="${1}"
+  fi
+
+  'ls' -1 ${downloadsExecutablesFolder} | grep -v README.md | awk -v format=${format} '
+     BEGIN {
+       line = 0
+     }
+     {
+       line = line + 1
+       if ( format == "numbered" ) {
+         # Print with line numbers and indent.
+         printf("  %d - %s\n", line, $0)
+       }
+       else if ( format == "indented" ) {
+         # Print with no line numbers and indent.
+         printf("  %s\n", $0)
+       }
+       else {
+         # Print with no line numbers and no indent.
+         printf("%s\n", $0)
+       }
+
+     }'
+
+  # Return the number of files:
+  # - use the same filters as above
+  # - mainly want to know if non-zero
+  fileCount=$('ls' -1 ${downloadsExecutablesFolder} | grep -v README.md | wc -l)
+  return ${fileCount}
 }
 
-# List the test datasets.
-# - first argument is the optional dataset
-listTestDatasets() {
+# List the test datasets:
+# - for example the list will contain "cm2015_StateCU"
+# - if the first parameter is a dataset, list it's contents
+x_listTestDatasets() {
+  local dataset datasetFolder
+
+  dataset=$1
+
+  if [ -n "${dataset}" ]; then
+    datasetFolder="${datasetsFolder}/${dataset}"
+    if [ -d "${datasetFolder}" ]; then
+      logWarning ""
+      logWarning "The requested dataset folder does not exist:"
+      logWarning "  ${datasetFolder}"
+    else
+      logText ""
+      logText "Executables that are in the ${dataset} folder:"
+      'ls' -1 ${datasetsFolder}
+    fi
+  else
+    logText ""
+    logText "Datasets that are in the testing framework:"
+    'ls' -1 ${datasetsFolder}
+  fi
+}
+
+# List the test datasets:
+# - first argument is the optional dataset, can have wildcards
+x_listTestDatasets() {
   local ds
 
   ds=${1}
@@ -38,6 +139,167 @@ listTestDatasets() {
     logText "Test datasets in:  ${testDatasetsFolder}"
     'ls' -1 ${testDatasetsFolder} | grep -v README.md | awk '{printf("  %s\n", $0)}'
   fi
+}
+
+# List test datasets with line numbers.
+# The number can then be entered to select a dataset.
+# - specify the first parameter as:
+#     "numbered" to number and indent
+#     "indented" to indent
+#     "raw" no indent and no number
+# - return the number of datasets
+listTestDatasets() {
+  local ds format searchFolder
+  local fileCount
+
+  format="raw"
+  ds=""
+  # Brute force parse since can be 0, 1, or 2 parameters.
+  if [ $# -gt 0 ]; then
+    if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
+      format="${1}"
+    else
+      ds=$1
+    fi
+  fi
+  if [ $# -gt 1 ]; then
+    if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
+      format="${1}"
+    else
+      ds=$2
+    fi
+  fi
+
+  if [ -n "${ds}" ]; then
+    # Search specific dataset given a pattern.
+    searchFolder="${testDatasetsFolder}/${ds}"
+  else
+    # Search the main dataset folder.
+    searchFolder="${testDatasetsFolder}"
+  fi
+
+  logDebug "format=${format}"
+
+  'ls' -1 ${testDatasetsFolder}/${ds} | grep -v README.md | awk -v format=${format} '
+     BEGIN {
+       line = 0
+     }
+     {
+       line = line + 1
+       if ( format == "numbered" ) {
+         # Print with line numbers and indent.
+         printf("  %d - %s\n", line, $0)
+       }
+       else if ( format == "indented" ) {
+         # Print with no line numbers and with indent.
+         printf("  %s\n", $0)
+       }
+       else {
+         # Print with no line numbers and no indent.
+         printf("%s\n", $0)
+       }
+     }'
+
+  # Return the number of files:
+  # - use the same filters as above
+  # - mainly want to know if non-zero
+  fileCount=$('ls' -1 ${testDatasetsFolder} | grep -v README.md | wc -l)
+  return ${fileCount}
+}
+
+# List test dataset variants with line numbers.
+# The number can then be entered to select a dataset variant.
+# - specify the first parameter as:
+#     "numbered" to number and indent
+#     "indented" to indent
+#     "raw" no indent and no number
+# - specify the second parameter as dataset name or glob regex
+#   TODO smalers 2021-08-18 need to get this to work
+listTestDatasetVariants() {
+  local ds format maxdepth mindepth searchFolders
+  local fileCount
+
+  format="raw"
+  ds=""
+  # Brute force parse since can be 0, 1, or 2 parameters.
+  if [ $# -gt 0 ]; then
+    if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
+      format="${1}"
+    else
+      ds=$1
+    fi
+  fi
+  if [ $# -gt 1 ]; then
+    if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
+      format="${1}"
+    else
+      ds=$2
+    fi
+  fi
+  logDebug "format=${format}"
+  logDebug "testDatasetsFolder=${testDatasetsFolder}"
+
+  searchFolders=${testDatasetsFolder}
+  mindepth=2
+  maxdepth=2
+  if [ -n "${ds}" ]; then
+    # Search matching dataset folder
+    searchFolders=$('ls' -1 ${testDatasetsFolder}/${ds} | grep -v README.md | awk '{printf("  %s\n", $0)}')
+    mindepth=1
+    maxdepth=1
+  fi
+
+  # Can't use ls because too complicated to filter.
+  #'ls' -1 ${testDatasetsFolder}/* | grep -v ':' | grep -v '0-dataset' | grep -v -e '^$' | awk '
+  # Use find to only get subfolders:
+  # - will show folders like:
+  #   /c/Users/sam/cdss-dev/StateCU/git-repos/cdss-app-statecu-fortran-test/test/datasets/cm2015_StateCU/statecu-14.0.0.gfortran-win-64bit
+  # - ignore the 0-dataset folders because don't want to remove 
+  find ${searchFolders} -mindepth ${mindepth} -maxdepth ${maxdepth} -type d | grep -v '0-dataset' | awk -v format=${format} '
+     BEGIN {
+       line = 0
+     }
+     {
+       line = line + 1
+       nparts = split($0, parts, "/")
+       if ( format == "numbered" ) {
+         # Print with line numbers and indent.
+         printf("  %d - %s/%s\n", line, parts[nparts-1], parts[nparts])
+       }
+       else if ( format == "indented" ) {
+         # Print with no line numbers and indent.
+         printf("  %s/%s\n", parts[nparts-1], parts[nparts])
+       }
+       else {
+         # Print with no line numbers and no indent.
+         printf("%s/%s\n", parts[nparts-1], parts[nparts])
+       }
+     }'
+
+  # Return the number of files:
+  # - use the same filters as above
+  # - mainly want to know if non-zero
+  fileCount=$(find ${searchFolders} -mindepth ${mindepth} -maxdepth ${mindepth} -type d | grep -v '0-dataset' | wc -l)
+  return ${fileCount}
+}
+
+# List test dataset variants - called from the menu.
+# - first parameter is optional dataset
+listTestDatasetVariantsMenu() {
+  local ds ndatasets
+
+  if [ -n "$1" ]; then
+    ds=$1
+  fi
+  listTestDatasetVariants indented ${ds}
+  ndatasets=$?
+  if [ "${ndatasets}" -eq 0 ]; then
+    logInfo ""
+    logInfo "There are no test dataset variants.  Need to create a test dataset."
+    return 0
+  fi
+
+  return 0
 }
 
 # ========================================================================================
@@ -121,6 +383,62 @@ configureEcho() {
 echoStderr() {
   # If necessary, quote the string to be printed.
   ${echo2} "$@" >&2
+}
+
+# Get the StateCU folder for a test dataset variant:
+# - sometimes is at the top level, sometimes one down
+# - first parameter is the full path to the test dataset variant folder
+# - the folder is echoed to stdout and can be assigned to a variable
+# - if an error, echo "" to stdout and return 1
+# - if success, the folder is echoed to stdout and return 0
+getTestDatasetVariantStatecuFolder() {
+  local statecuFolder testVariantFolder
+
+  if [ $# -lt 1 ]; then
+    logWarning "Can't determine test dataset StateCU folder."
+    echo ""
+    return 1
+  fi
+  testVariantFolder=$1
+  if [ ! -d "${testVariantFolder}" ]; then
+    logWarning "Test dataset variant folder does not exist:"
+    logWarning "  ${testVariantFolder}"
+    logWarning "Can't determine test dataset StateCU folder."
+    echo ""
+    return 1
+  fi
+
+  # Try case where StateCU folder exists in the top of the dataset folder.
+  statecuFolder="${testVariantFolder}/StateCU"
+  if [ -d "${statecuFolder}" ]; then
+    logInfo ""
+    logInfo "StateCU folder is in top folder of dataset:"
+    logInfo "  ${statecuFolder}"
+    echo "${statecuFolder}"
+    return 0
+  else
+    # Try the subfolder in the datset:
+    # - the subfolder name has typically matched the zip file name but this is not guaranteed
+    # - could do a "find" but want to ensure some consistency
+    statecuFolder="${testVariantFolder}/$(basename ${testDatasetFolder})/StateCU"
+    if [ -d "${statecuFolder}" ]; then
+      logInfo ""
+      logInfo "StateCU folder is in first sub-folder of dataset:"
+      logInfo "  ${statecuFolder}"
+      echo "${statecuFolder}"
+      return 0
+    else
+      logWarning
+      logWarning "Unable to determine StateCU folder in dataset:"
+      logWarning "  ${testVariantFolder}"
+      logWarning "Need to check script code to handle more dataset organization cases."
+      echo ""
+      return 1
+    fi
+  fi
+  # Should not get her but if do return an error.
+  echo ""
+  return 1
 }
 
 # Log a debug message:
@@ -297,57 +615,6 @@ logWarning() {
 # End the logging functions.
 # ========================================================================================
 
-# List the datasets:
-# - if the first parameter is a dataset, list it's contents
-listDatasets() {
-  local dataset datasetFolder
-
-  dataset=$1
-
-  if [ -n "${dataset}" ]; then
-    datasetFolder="${datasetsFolder}/${dataset}"
-    if [ -d "${datasetFolder}" ]; then
-      logWarning ""
-      logWarning "The requested dataset folder does not exist:"
-      logWarning "  ${datasetFolder}"
-    else
-      logText ""
-      logText "Executables that are in the ${dataset} folder:"
-      'ls' -1 ${datasetsFolder}
-    fi
-  else
-    logText ""
-    logText "Datasets that are in the testing framework:"
-    'ls' -1 ${datasetsFolder}
-  fi
-}
-
-# Helper function to list datasets with line numbers.
-# The number can then be entered to select a dataset.
-listDatasetsWithNumbers() {
-  'ls' -1 ${testDatasetsFolder} | awk '
-     BEGIN {
-       line = 0
-     }
-     {
-       line = line + 1
-       printf("%d - %s\n", line, $0)
-     }'
-}
-
-# Helper function to list executables with line numbers.
-# The number can then be entered to select an executable.
-listExecutablesWithNumbers() {
-  'ls' -1 ${downloadsExecutablesFolder} | awk '
-     BEGIN {
-       line = 0
-     }
-     {
-       line = line + 1
-       printf("%d - %s\n", line, $0)
-     }'
-}
-
 # Create a new test datasets:
 # - prompt for the dataset
 # - prompt for the executable
@@ -358,23 +625,33 @@ newTestDataset() {
   logText ""
   logText "Create a new test dataset:"
   logText " - select a dataset and executable"
-  logText " - the dataset is copied to a test folder with name matching the executable"
-  logText " - the executable is copied into the StateCU folder"
+  logText " - the '0-dataset' dataset is copied to a test folder with name matching the executable"
+  logText " - the executable is copied into the StateCU folder of the test dataset"
   logText " - the model can then be run"
   logText ""
   while [ "1" = "1" ]; do
-    listDatasetsWithNumbers
-    read -p "Select a dataset (#/q/ ): " selectedDataset
+    listTestDatasets numbered
+    ndatasets=$?
+    if [ "${ndatasets}" -eq 0 ]; then
+      logInfo ""
+      logInfo "There are no datasets.  Need to create a test dataset."
+      return 0
+    fi
+    logText ""
+    read -p "Select a dataset (#/q/ ): " selectedDatasetNumber
     if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
       exit 0
     elif [ -z "${selectedDatasetNumber}" ]; then
       break
     else
       # Have a dataset.  Next pick the executable.
-      selectedDataset=$('ls' -1 | head -${selectedDatasetNumber} | tail -1 | cut -d '-' -f 2 | tr -d ' ')
+      selectedDataset=$(listTestDatasets | head -${selectedDatasetNumber} | tail -1)
+      logText ""
       logText "Selected dataset: ${selectedDataset}"
+      logText ""
       testDatasetFolder="${testDatasetsFolder}/${selectedDataset}"
       if [ ! -d "${testDatasetFolder}" ]; then
+        # This should not happen.
         logWarning ""
         logWarning "The main test dataset folder does not exist:"
         logWarning "  ${testDatasetFolder}"
@@ -382,8 +659,15 @@ newTestDataset() {
         return 1
       fi
       while [ "1" = "1" ]; do
-        listExecutablesWithNumbers
-        read -p "Select an executable (#/q/ ): " selectedExecutable
+        listDownloadExecutables numbered
+        nexe=$?
+        if [ "${nexe}" -eq 0 ]; then
+          logInfo ""
+          logInfo "There are no executables.  Need to download an executable."
+          return 0
+        fi
+        logText ""
+        read -p "Select an executable number (#/q/ ): " selectedExecutableNumber
         if [ "${selectedExecutableNumber}" = "q" -o "${selectedExecutableNumber}" = "Q" ]; then
           exit 0
         elif [ -z "${selectedExecutableNumber}" ]; then
@@ -391,7 +675,7 @@ newTestDataset() {
           return 0
         else
           # Have an executable.  Continue with creating the test dataset.
-          selectedExecutable=$('ls' -1 | head -${selectedExecutableNumber} | tail -1 | cut -d '-' -f 2 | tr -d ' ')
+          selectedExecutable=$(listDownloadExecutables | head -${selectedExecutableNumber} | tail -1)
           logText "Selected executable: ${selectedExecutable}"
           # TODO smalers 2021-08-17 need to make sure this works on Linux where extensions will not be used.
           selectedExecutableNoExt=${selectedExecutable%.*}
@@ -403,11 +687,12 @@ newTestDataset() {
             read -p "Replace (Y/n/q)? " answer
             if [ "${answer}" = "q" -o "${answer}" = "Q" ]; then
               exit 0
-            elif [ "${answer}" = "y" -o "${answer}" = "Y" ]; then
+            elif [ -z "${answer}" -o "${answer}" = "y" -o "${answer}" = "Y" ]; then
+              logInfo "Removing: ${testVariantFolder}"
               rm -rf "${testVariantFolder}"
               if [ $? -ne 0 ]; then
                 logWarning "${warnColor}Unable to remove folder:  ${testVariantFolder}${endColor}"
-                logWarning "${warnColor}File(s) may be open in software.${endColor}"
+                logWarning "${warnColor}File(s) may be open in software.  Check and retry.${endColor}"
                 return 1
               fi
             else
@@ -418,11 +703,11 @@ newTestDataset() {
           # If here the variant folder has been deleted and need to copy the dataset files and executable.
           # Copy the dataset.
           datasetFromFolder="${testDatasetFolder}/0-dataset"
-          LogInfo ""
-          LogInfo "Copying dataset files:"
-          LogInfo "  from: ${datasetFromFolder}"
-          LogInfo "    to: ${testVariantFolder}"
-          cp -r ${datsetFromFolder} ${testVariantFolder}
+          logInfo ""
+          logInfo "Copying dataset files:"
+          logInfo "  from: ${datasetFromFolder}"
+          logInfo "    to: ${testVariantFolder}"
+          cp -r ${datasetFromFolder} ${testVariantFolder}
           if [ $? -eq 0 ]; then
              logInfo "Success copying dataset files."
           else
@@ -432,35 +717,41 @@ newTestDataset() {
           # Copy the executable.
           # First determine the StateCU folder.
           # May be in top level of the dataset or one down due to zip file contents.
-          statecuFolder="${testVariantFolder}/StateCU"
-          if [ -d "${statecuFolder}" ]; then
-            logInfo "StateCU folder is in top folder of dataset:"
-            logInfo "  ${statecuFolder}"
+          statecuFolder=$(getTestDatasetVariantStatecuFolder ${testVariantFolder})
+          if [ $? -ne 0 -o -z "${statecuFolder}" ]; then
+            # Warnings will have been printed in above call.
+            logWarning ""
+            logWarning "Unable to create new test dataset variant."
+            return 1
           else
-            # Try the subfolder in the datset:
-            # - the subfolder name has typically matched the zip file name but this is not guaranteed
-            # - could do a "find" but want to ensure some consistency
-            statecuFolder="${testVariantFolder}/$(basename ${testDatasetFolder})/StateCU"
-            if [ -d "${statecuFolder}" ]; then
-              logInfo "StateCU folder is in first sub-folder of dataset:"
-              logInfo "  ${statecuFolder}"
-            else
-              logWarning "Unable to determine StateCU folder in dataset:"
-              logWarning "  ${testVariantFolder}"
-              logWarning "Need to check script code."
+            executableFrom=${downloadsExecutablesFolder}/${selectedExecutable}
+            statecuExecutable=${statecuFolder}/$(basename ${executableFrom})
+            nchars=$(echo ${statecuExecutable} | wc -c)
+            if [ ${nchars} -gt 255 ]; then
+              logWarning "StateCU executable name is > 255 characters."
+              logWarning "Will not work on Windows or Linux."
               return 1
             fi
-          fi
-          executableFrom=${downloadsExecutablesFolder}/${selectedExecutable}
-          LogInfo ""
-          LogInfo "Copying executable:"
-          LogInfo "  from: ${executableFrom}"
-          LogInfo "    to: ${statecuFolder}"
-          if [ $? -eq 0 ]; then
-             logInfo "Success copying executable file."
-          else
-             logWarning "${warnColor}Error copying executable - check script code.${endColor}"
-             return 1
+            logInfo ""
+            logInfo "Copying executable:"
+            logInfo "  from: ${executableFrom}"
+            logInfo "    to: ${statecuExecutable}"
+            cp "${executableFrom}" "${statecuExecutable}"
+            if [ $? -eq 0 ]; then
+               logInfo "Success copying executable file."
+               # Also set the permissions to executable.
+               logInfo "Setting executable permissions to executable (need in linux environments)."
+               chmod a+x ${statecuExecutable} 2> /dev/null
+               if [ $? -ne 0 ]; then
+                 logWarning "${warnColor}Error setting executable permissions:${endColor}"
+                 logWarning "${warnColor}  ${statecuExecutable}${endColor}"
+                 logWarning "${warnColor}Check script code.${endColor}"
+               fi
+               return 0
+            else
+               logWarning "${warnColor}Error copying executable - check script code.${endColor}"
+               return 1
+            fi
           fi
         fi
       done
@@ -551,7 +842,8 @@ parseCommandLine() {
   fi
 }
 
-# Print help for a command.
+# Print help for a command:
+# - the first argument is an optional menu command
 printHelp() {
   local command
 
@@ -576,14 +868,14 @@ printHelp() {
   # Test Datasets
   # ==========================
   elif [[ "${command}" = "lst"* ]]; then
-    logText "${menuColor}lst${endColor}ds [dataset]"
+    logText "${menuColor}lst${endColor}est [dataset]"
     logText ""
     logText "With no argument, list test datasets, which match download dataset names."
     logText "With an argument, list test dataset variants for the dataset."
     logText "The 'datset' can contain wildcards (e.g., *cm*)."
     logText "Test dataset variants match StateCU executable names."
   elif [[ "${command}" = "new"* ]]; then
-    logText "${menuColor}new${endColor}test [dataset]"
+    logText "${menuColor}n${endColor}ewtest [dataset]"
     logText ""
     logText "Create a new test dataset variant."
     logText "Prompts are provided for dataset and executable."
@@ -591,8 +883,14 @@ printHelp() {
   elif [[ "${command}" = "rmt"* ]]; then
     logText "${menuColor}rmt${endColor}est"
     logText ""
-    logText "Remove new test dataset variant."
+    logText "Remove a test dataset (e.g., 'cm2015_StateCU') and all variants."
     logText "A prompt is provided to confirm the removal."
+  elif [[ "${command}" = "rmv"* ]]; then
+    logText "${menuColor}rmv${endColor}est"
+    logText ""
+    logText "Remove a test dataset variant (matches executable name)."
+    logText "A prompt is provided to confirm the removal."
+  # ==========================
   # ==========================
   # StateCU
   # ==========================
@@ -665,6 +963,105 @@ printVersion() {
   echoStderr "${scriptName} version ${version}"
 }
 
+# Remove a test datasets:
+# - for example `cm2015_StateCU'
+# - prompt for the dataset
+removeTestDataset() {
+  local selectedDataset selectedDatasetNumber
+  local ndatasets
+
+  logText ""
+  logText "Remove a dataset (e.g., cm2015_StateCU) and all test variants."
+  logText ""
+  listTestDatasets numbered
+  ndatasets=$?
+  if [ "${ndatasets}" -eq 0 ]; then
+    logInfo ""
+    logInfo "There are no datasets.  Need to download and install datasets."
+    return 0
+  fi
+  read -p "Select the number of the dataset to remove (#/q/ ): " selectedDatasetNumber
+  if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
+    exit 0
+  elif [ -z "${selectedDatasetNumber}" ]; then
+    # Don't want to continue.
+    return
+  else
+    # Remove the dataset.
+    selectedDataset=$(listTestDatasets | head -${selectedDatasetNumber} | tail -1)
+    logText "Selected dataset: ${selectedDataset}"
+    testDatasetFolder="${testDatasetsFolder}/${selectedDataset}"
+    logText "Removing:"
+    logText "  ${testDatasetFolder}"
+    read -p "Confirm delete dataset (Y/n/q)? " answer
+    if [ "${answer}" = "q" -o "${answer}" = "Q" ]; then
+      exit 0
+    elif [ -z "${answer}" -o "${answer}" = "y" -o "${answer}" = "Y" ]; then
+      rm -rf ${testDatasetFolder}
+      if [ $? -eq 0 ]; then
+        logInfo "Successfully deleted dataset."
+      else
+        logWarning "Error deleting dataset."
+        logWarning "Files may be opened by software."
+      fi
+    else
+      return 0
+    fi
+  fi
+  return 0
+}
+
+# Remove a test dataset variant:
+# - matches an executable name
+# - prompt for the dataset
+removeTestDatasetVariant() {
+  local ndatasets selectedDataset selectedDatasetNumber
+
+  logText ""
+  logText "Remove a dataset variant that matches an executable name."
+  logText ""
+
+  listTestDatasetVariants numbered
+  ndatasets=$?
+  if [ "${ndatasets}" -eq 0 ]; then
+    logInfo ""
+    logInfo "There are no test dataset variants.  Need to create a test dataset."
+    return 0
+  fi
+
+  # The list will include dataset/variant.
+  logText ""
+  read -p "Select the number of the dataset to remove (#/q/ ): " selectedDatasetNumber
+  if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
+    exit 0
+  elif [ -z "${selectedDatasetNumber}" ]; then
+    # Don't want to continue.
+    return
+  else
+    # Remove the dataset.
+    selectedDataset=$(listTestDatasetVariants | head -${selectedDatasetNumber} | tail -1)
+    logText "Selected dataset variant: ${selectedDataset}"
+    testDatasetFolder="${testDatasetsFolder}/${selectedDataset}"
+    logText "Removing:"
+    logText "  ${testDatasetFolder}"
+    read -p "Confirm delete dataset variant (Y/n/q)? " answer
+    if [ "${answer}" = "q" -o "${answer}" = "Q" ]; then
+      exit 0
+    elif [ -z "${answer}" -o "${answer}" = "y" -o "${answer}" = "Y" ]; then
+      rm -rf ${testDatasetFolder}
+      if [ $? -eq 0 ]; then
+        logInfo "Successfully deleted dataset variant."
+      else
+        logWarning "Error deleting dataset variant."
+        logWarning "Files may be opened by software."
+      fi
+    else
+      return 0
+    fi
+  fi
+  return 0
+}
+
 # Run interactively:
 # - use simple echo without logging
 runInteractive () {
@@ -682,9 +1079,11 @@ runInteractive () {
     ${echo2} "Downloads.....${menuColor}lsdd${endColor}s               - list downloaded datasets"
     ${echo2} "              ${menuColor}lsde${endColor}xe              - list downloaded executables"
     ${echo2} ""
-    ${echo2} "Test..........${menuColor}lst${endColor}ds [dataset]     - list datasets (or dataset tests)"
-    ${echo2} "Datasets      ${menuColor}new${endColor}test             - create a test variant for a dataset"
-    ${echo2} "              ${menuColor}rmt${endColor}est              - remove test dataset folder"
+    ${echo2} "Test..........${menuColor}lst${endColor}est [*dataset*]  - list test datasets (or dataset tests)"
+    ${echo2} "Datasets      ${menuColor}lsv${endColor}ariant           - list test variants (for dataset and executable)"
+    ${echo2} "              ${menuColor}n${endColor}ewtest             - create a test variant for a dataset and executable"
+    ${echo2} "              ${menuColor}rmt${endColor}est              - remove test dataset folder (e.g., cm2015_StateCU)"
+    ${echo2} "              ${menuColor}rmv${endColor}ariant           - remove test dataset variant folder (for executable variant)"
     ${echo2} ""
     ${echo2} "StateCU.......${menuColor}ru${endColor}n                 - run a test dataset"
     ${echo2} ""
@@ -696,12 +1095,16 @@ runInteractive () {
     ${echo2} "              ${menuColor}h${endColor}elp [command]"
     ${echo2} ""
     read -p "Enter menu item: " answer
-    # -------- Downloads ----------
+    # ======================
+    # Downloads
+    # ======================
     if [[ "${answer}" = "lsdd"* ]]; then
-      listDownloadDatasets
+      listDownloadDatasets indented
     elif [[ "${answer}" = "lsde"* ]]; then
-      listDownloadExecutables
-    # -------- Dataset tests ------
+      listDownloadExecutables indented
+    # ======================
+    # Test Datasets
+    # ======================
     elif [[ "${answer}" = "lst"* ]]; then
       # List the datasets or the contents of a dataset's folder.
       answerWordCount=$(echo ${answer} | wc -w)
@@ -709,16 +1112,36 @@ runInteractive () {
         # Menu item followed by dataset name.
         dataset=$(echo ${answer} | cut -d ' ' -f 2)
       else
-        # Assume just menu item so default database.
+        # Assume just menu item so default dataset.
         dataset=""
       fi
-      listTestDatasets ${dataset}
+      listTestDatasets indented ${dataset}
+    elif [[ "${answer}" = "lsv"* ]]; then
+      # List the datasets or the contents of a dataset's folder.
+      answerWordCount=$(echo ${answer} | wc -w)
+      if [ "${answerWordCount}" -eq 2 ]; then
+        # Menu item followed by dataset name.
+        dataset=$(echo ${answer} | cut -d ' ' -f 2)
+      else
+        # Assume just menu item so default dataset.
+        dataset=""
+      fi
+      listTestDatasetVariantsMenu ${dataset}
+    # ======================
     elif [[ "${answer}" = "n"* ]]; then
       # Create a new dataset test:
       # - the test variant will match an executable name
       newTestDataset
-    # -------- StateCU -----------
-    elif [[ "${answer}" = "runds"* ]]; then
+    elif [[ "${answer}" = "rmt"* ]]; then
+      # Remove a dataset test:
+      removeTestDataset
+    elif [[ "${answer}" = "rmv"* ]]; then
+      # Remove a dataset test variant:
+      removeTestDatasetVariant
+    # ======================
+    # StateCU
+    # ======================
+    elif [[ "${answer}" = "ru"* ]]; then
       # Run a dataset in the testing framework:
       # - for example dataset is 'cm2015'
       answerWordCount=$(echo ${answer} | wc -w)
@@ -726,10 +1149,16 @@ runInteractive () {
         # Menu item followed by dataset name.
         dataset=$(echo ${answer} | cut -d ' ' -f 2)
       else
-        # Assume just menu item so default database.
+        # Assume just menu item so default dataset.
         dataset=""
       fi
-      runDataset ${dataset}
+      runTestDatasetVariant ${dataset}
+    # ======================
+    # Compare
+    # ======================
+    # ======================
+    # General commands
+    # ======================
     elif [[ "${answer}" = "h"* ]]; then
       # List print help.
       answerWordCount=$(echo ${answer} | wc -w)
@@ -749,9 +1178,130 @@ runInteractive () {
       continue
     else
       # Unknown option, show the message again.
-      echo "Don't know how to handle option:  ${answer}"
+      echo "Don't know how to handle command:  ${answer}"
     fi
   done
+}
+
+# Run a test dataset variant:
+# - matches an executable name
+# - prompt for the dataset
+runTestDatasetVariant() {
+  local ndatasets selectedDataset selectedDatasetNumber
+  local selectedRcu selectedRcuNumber
+  local rcuCount rcuFile rcuFileNoExt
+  local statecuFolder statecuExecutable statecuExecutableNoExt
+
+  logText ""
+  logText "Run a dataset variant that matches an executable name."
+  logText ""
+
+  listTestDatasetVariants numbered
+  ndatasets=$?
+  if [ "${ndatasets}" -eq 0 ]; then
+    logInfo ""
+    logInfo "There are no test dataset variants.  Need to create a test dataset."
+    return 0
+  fi
+
+  # The list will include dataset/variant.
+  logText ""
+  read -p "Select the number of the dataset to run (#/q/ ): " selectedDatasetNumber
+  if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
+    exit 0
+  elif [ -z "${selectedDatasetNumber}" ]; then
+    # Don't want to continue.
+    return
+  else
+    # Run the dataset.
+    selectedDataset=$(listTestDatasetVariants | head -${selectedDatasetNumber} | tail -1)
+    logText "Selected dataset variant: ${selectedDataset}"
+    testVariantFolder="${testDatasetsFolder}/${selectedDataset}"
+    if [ ! -d "${testVariantFolder}" ]; then
+      logWarning "Test dataset variant folder does not exist: ${testVariantFolder}"
+      logWarning "Check script code."
+      logWarning "Cannot run StateMod."
+      return 1
+    fi
+
+    # Change to the StateCU folder to run the model.
+    statecuFolder=$(getTestDatasetVariantStatecuFolder ${testVariantFolder})
+    if [ $? -ne 0 -o -z "${statecuFolder}" ]; then
+      # Warnings will have been printed in above call.
+      logWarning ""
+      logWarning "${warnColor}Unable to run StateCU.${endColor}"
+      return 1
+    fi
+    # Determine the StateCU executable name using conventions:
+    # - StateCU executable on linux won't have the extension
+    # - on Windows can run without the extension but checking with extension
+    #   confirms that the file exists
+    statecuExecutableNoExt="${statecuFolder}/$(basename ${testVariantFolder})"
+    statecuExecutable="${statecuFolder}/$(basename ${testVariantFolder}.exe)"
+    logInfo ""
+    logInfo "Changing to dataset variant folder:"
+    logInfo "  ${statecuFolder}"
+    cd ${statecuFolder}
+    if [ $? -ne 0 ]; then
+      logWarning "${warnColor}Could not cd to StateCU folder:${endColor}"
+      logWarning "${warnColor}  ${statecuFolder}${endColor}"
+      logWarning "${warnColor}Cannot run StateCU.  Permissions problem?${endColor}"
+      return 1
+    fi
+    # Check other requirements.
+    if [ ! -f "${statecuExecutable}" -a ! -f "${statecuExecutableNoExt}" ]; then
+      # Neither executable name exists:
+      # - should have been copied when the dataset was created
+      logWarning "${warnColor}StateCU executable does not exist:${endColor}"
+      logWarning "${warnColor}  ${statecuExecutable}${endColor}"
+      logWarning "${warnColor}  ${statecuExecutableNoExt}${endColor}"
+      logWarning "${warnColor}Cannot run StateCU.  Check dataset setup.${endColor}"
+      return 1
+    elif [ -f "${statecuExecutable}" -a ! -x "${statecuExecutable}" ]; then
+      # StateCU program is not executable:
+      # - should have been set when the dataset was created
+      logWarning "${warnColor}StateCU executable permissions are not executable:${endColor}"
+      logWarning "${warnColor}  ${statecuExecutable}${endColor}"
+      logWarning "${warnColor}Cannot run StateCU.  Check dataset setup.${endColor}"
+      return 1
+    elif [ -f "${statecuExecutableNoExt}" -a ! -x "${statecuExecutableNoExt}" ]; then
+      # StateCU program is not executable:
+      # - should have been set when the dataset was created
+      logWarning "${warnColor}StateCU executable permissions are not executable:${endColor}"
+      logWarning "${warnColor}  ${statecuExecutableNoExt}${endColor}"
+      logWarning "${warnColor}Cannot run StateCU.  Check dataset setup.${endColor}"
+      return 1
+    else
+      # Run StateCU for all *.rcu files that are available.
+      # Get the 'rcu' file to know what specific dataset to run.
+      rcuCount=$('ls' -1 *.rcu | wc -l)
+      logInfo "Found ${rcuCount} *.rcu files.  Will run each."
+      if [ ${rcuCount} -eq 0 ]; then
+        logWarning "No *.rcu file exists.  Cannot run StateCU."
+        return 1
+      fi
+      # List into an array.
+      #rcuFiles=$('ls' -1 *.rcu)
+      for rcuFile in ${statecuFolder}/*.rcu; do
+        # If here have the selected *.rcu file to run:
+        # - run using the response file name without extension since that is the
+        #   behavior that older StateCU versions support
+        # - use the full path to the executable to avoid any possible conflict with PATH
+        rcuFileName=$(basename ${rcuFile})
+        rcuFileNoExt="${rcuFileName%.*}"
+        logInfo "Running StateCU:"
+        logInfo "  ${statecuExecutable} ${rcuFileNoExt}"
+        ${statecuExecutable} ${rcuFileNoExt}
+        if [ $? -eq 0 ]; then
+          logInfo "${okColor}Success running StateCU for: ${rcuFileNoExt}${endColor}"
+        else
+          logWarning "${warnColor}Error running StateCU for: ${rcuFileNoExt}${endColor}"
+          logWarning "${warnColor}See the StateCU log file mentioned above.${endColor}"
+        fi
+      done
+    fi
+  fi
+  return 0
 }
 
 # Entry point into the script.

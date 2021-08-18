@@ -57,7 +57,7 @@ cdss-app-statecu-fortran-test/                     StateCU tests (this repositor
   README.md                                        This file.
   downloads/                                       Folder where datasets and executables are downloaded.
     datasets/                                      Downloaded dataset zip files from CDSS, etc.
-      cm2015_StateCU.zip                           Are unzipped to matching 'test/datasets/*/cdss-dataset' folder.
+      cm2015_StateCU.zip                           Are unzipped to matching 'test/datasets/*/0-dataset' folder.
     executables/                                   Downloaded executable files from OpenCDSS, etc.
       statecu-14.0.0.gfortran-win-64bit.exe        Executable program, copied to 'test/datasets/*/*/StateCU' folder.
   scripts/                                         Scripts to help with testing.
@@ -107,16 +107,21 @@ The TSTool command files download and install the files into the
 The dataset files are then available to copy into folders for an executable,
 to run for testing.
 
-### 2. Create New Test Dataset
+### 2. Create New Test Dataset Variant
 
 The previous step creates a `0-dataset` folder that is copied to create a test dataset.
-The test dataset is referred to as a "variant" because it contains a
-specific StateCU executable variant (version, compiler, compiler options, 32/64-bit, etc.).
+A test dataset is referred to as a "variant" because it contains a
+specific StateCU executable variant with properties:
+
+* StateCU version (e.g., `14.0.0`)
+* compiler (e.g., `gfortran` or `Lahey`)
+* compiler options (e.g., `check` and `o3`)
+* 32/64-bit
 
 Run the `statecu-test.bash` script and use the `newtest` command to
 initialize each test dataset of interest, which includes a selected
 dataset and executable (in `StateCU` folder).
-A separate folder is necessary to fully isolate the dataset from another executable.
+A separate folder is necessary for each variant to fully isolate the dataset from another executable.
 This ensures that there is no mistake in mixing test results.
 
 ### 3. Run StateCU to Generate Output
@@ -137,7 +142,7 @@ which form the bulk of the results.
 
 ### 5. Streamlined Testing
 
-The initial testing focus is on the above steps.
+The initial testing focuses on implementing the above steps.
 However, it is possible to streamline automated testing by
 automating running multiple datasets, creating comparisons,
 and summarizing test results.
