@@ -255,7 +255,7 @@ listTestDatasetVariants() {
   # - will show folders like:
   #   /c/Users/sam/cdss-dev/StateCU/git-repos/cdss-app-statecu-fortran-test/test/datasets/cm2015_StateCU/statecu-14.0.0.gfortran-win-64bit
   # - ignore the 0-dataset folders because don't want to remove 
-  find ${searchFolders} -mindepth ${mindepth} -maxdepth ${maxdepth} -type d | grep -v '0-dataset' | awk -v format=${format} '
+  find ${searchFolders} -mindepth ${mindepth} -maxdepth ${maxdepth} -type d | grep -v '0-dataset' | grep -v 'comp' | awk -v format=${format} '
      BEGIN {
        line = 0
      }
@@ -279,7 +279,7 @@ listTestDatasetVariants() {
   # Return the number of files:
   # - use the same filters as above
   # - mainly want to know if non-zero
-  fileCount=$(find ${searchFolders} -mindepth ${mindepth} -maxdepth ${mindepth} -type d | grep -v '0-dataset' | wc -l)
+  fileCount=$(find ${searchFolders} -mindepth ${mindepth} -maxdepth ${mindepth} -type d | grep -v '0-dataset' | grep -v 'comp' | wc -l)
   return ${fileCount}
 }
 
@@ -618,9 +618,13 @@ logWarning() {
 # Create a new test datasets:
 # - prompt for the dataset
 # - prompt for the executable
-newTestDataset() {
+newTestDatasetVariant() {
   local selectedDataset selectedDatasetNumber
   local selectedExecutable selectedExecutableNumber
+
+  # Make sure that the program is not in a folder to be removed:
+  # - just change to the initial ${scriptFolder}
+  cd ${scriptFolder}
 
   logText ""
   logText "Create a new test dataset:"
@@ -973,6 +977,11 @@ removeTestDataset() {
   logText ""
   logText "Remove a dataset (e.g., cm2015_StateCU) and all test variants."
   logText ""
+
+  # Make sure that the program is not in a folder to be removed:
+  # - just change to the initial ${scriptFolder}
+  cd ${scriptFolder}
+
   listTestDatasets numbered
   ndatasets=$?
   if [ "${ndatasets}" -eq 0 ]; then
@@ -1028,6 +1037,10 @@ removeTestDatasetVariant() {
     logInfo "There are no test dataset variants.  Need to create a test dataset."
     return 0
   fi
+
+  # Make sure that the program is not in a folder to be removed:
+  # - just change to the initial ${scriptFolder}
+  cd ${scriptFolder}
 
   # The list will include dataset/variant.
   logText ""
@@ -1131,7 +1144,7 @@ runInteractive () {
     elif [[ "${answer}" = "n"* ]]; then
       # Create a new dataset test:
       # - the test variant will match an executable name
-      newTestDataset
+      newTestDatasetVariant
     elif [[ "${answer}" = "rmt"* ]]; then
       # Remove a dataset test:
       removeTestDataset
