@@ -67,12 +67,18 @@ cdss-app-statecu-fortran-test/                     StateCU tests (this repositor
       cm2015_StateCU/                              For example, Upper Colorado dataset,
                                                    using CDSS download file name.
         0-dataset/                                 The dataset files from dataset download - DO NOT MODIFY.
-        statecu-14.0.0.gfortran-win-64bit/         Copy of '0-dataset' files.
+                                                   The contents of the folder are copied to other folders.
+        comp/                                      Folder for comparisons.
+          comp~executable1~executable2/            TSTool command files and output to compare two
+                                                   model run from 'exes' results.
+        exes/                                      Folder containing dataset variants for executables.
+          statecu-14.0.0.gfortran-win-64bit/       Copy of '0-dataset' files for an executable.
                                                    Folder name matches executable name.
                                                    The dataset is run in this folder.
-        statecu-13.11.gfortran-win-32bit/          Another executable dataset copy.
-          diff-statecu-14.0.0.gfortran-win-64bit/  TSTool command files and output to compare
-                                                   this model run with another model run.
+          statecu-13.11.gfortran-win-32bit/        Another executable dataset copy.
+  tstool-templates/                                TSTool command file templates.
+                                                   Files are copied and modified for specific comparisons.
+    compare-statecu-runs/                          Command files used to compare model results.
 ```
 
 ## `statecu-test.bash` Script
