@@ -1,0 +1,24 @@
+StartLog(LogFile="results/comp~statecu-14.0.0-gfortran-win-64bit~statecu-13.10-gfortran-win-32bit.tstool.log",MaxSize="100000000")
+# Template command file to compare two StateCU datasets:
+# - use properties for controlling information so that command can be easily modified
+# - there are 24 output parameters * nlocations = nts (number of time series)
+# - nts * nyears * 12 * 4bytes = approximate memory in byte for time series data
+SetProperty(PropertyName="RunStart",PropertyType=DateTime,PropertyValue="CurrentToSecond")
+SetProperty(PropertyName="Dataset1Folder",PropertyType=String,PropertyValue="../../statecu-14.0.0-gfortran-win-64bit/StateCU")
+SetProperty(PropertyName="Dataset2Folder",PropertyType=String,PropertyValue="../../statecu-13.10-gfortran-win-32bit/StateCU")
+SetProperty(PropertyName="Scenario",PropertyType=String,PropertyValue="cm2015")
+SetProperty(PropertyName="TSIDPattern",PropertyType=String,PropertyValue="*")
+# SetProperty(PropertyName="TSIDPattern",PropertyType=String,PropertyValue="*.*.Total Crop CU.*.*")
+# Read all of the time series matching the requested TSID pattern:
+# - can set to a subset for testing and then use "*" for full run
+ReadStateCUB(InputFile="${Dataset1Folder}/${Scenario}.BD1",TSID="${TSIDPattern}",OutputVersion="Latest")
+ReadStateCUB(InputFile="${Dataset2Folder}/${Scenario}.BD1",TSID="${TSIDPattern}",OutputVersion="Latest")
+#
+# Compare time series with matching time series identifiers:
+# - smallest value of 2 allows for sufficient roundoff
+# - only create difference time series based on smallest criteria
+# - TODO smalers 2021-08-18 maybe need a way to compare based on significant digits
+CreateFolder(Folder="results",IfFolderExists=Ignore)
+CompareTimeSeries(MatchDataType=True,Tolerance="2,10,100,1000",CreateDiffTS=IfDifferent,DifferenceFile="results/allts-differences.txt",SummaryFile="results/summary-differences.txt",TableID="CompTable",DiffCountProperty="CompDiffCount",IfDifferent=Warn)
+SetProperty(PropertyName="RunEnd",PropertyType=DateTime,PropertyValue="CurrentToSecond")
+Message(Message="RunStart=${RunStart}, RunEnd=${RunEnd}")
