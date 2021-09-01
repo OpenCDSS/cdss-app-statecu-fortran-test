@@ -65,7 +65,6 @@ listDownloadExecutables() {
   local fileCount
 
   format="raw"
-  # Brute force parse since can be 0, 1, or 2 parameters.
   if [ $# -gt 0 ]; then
     format="${1}"
   fi
@@ -159,14 +158,16 @@ listTestDatasets() {
     if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
       format="${1}"
     else
-      ds=$1
+      ds=${1}
     fi
   fi
   if [ $# -gt 1 ]; then
     if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
-      format="${1}"
+      format="${2}"
     else
-      ds=$2
+      if [ -z "${ds}" ]; then
+        ds=${2}
+      fi
     fi
   fi
 
@@ -176,6 +177,233 @@ listTestDatasets() {
   else
     # Search the main dataset folder.
     searchFolder="${testDatasetsFolder}"
+  fi
+
+  logDebug "format=${format}"
+
+  #'ls' -1 ${testDatasetsFolder}/${ds} | grep -v README.md | awk -v format=${format} '
+  'ls' -1 ${searchFolder} | grep -v README.md | awk -v format=${format} '
+     BEGIN {
+       line = 0
+     }
+     {
+       line = line + 1
+       if ( format == "numbered" ) {
+         # Print with line numbers and indent.
+         printf("  %d - %s\n", line, $0)
+       }
+       else if ( format == "indented" ) {
+         # Print with no line numbers and with indent.
+         printf("  %s\n", $0)
+       }
+       else {
+         # Print with no line numbers and no indent.
+         printf("%s\n", $0)
+       }
+     }'
+
+  # Return the number of files:
+  # - use the same filters as above
+  # - mainly want to know if non-zero
+  # - make sure to NOT check the return status in calling code
+  fileCount=$('ls' -1 ${searchFolder} | grep -v README.md | wc -l)
+  return ${fileCount}
+}
+
+# This version uses 'find'.
+# List test dataset variants with line numbers.
+# The number can then be entered to select a dataset variant.
+# - specify the first parameter as:
+#     "numbered" to number and indent
+#     "indented" to indent
+#     "raw" no indent and no number
+# - specify the second parameter as dataset name or glob regex
+#   TODO smalers 2021-08-18 need to get this to work
+# - this is a copy of he listTestDatasetVariants function but with 'comps' instead of 'exes'
+listTestDatasetComps() {
+  local ds format maxdepth mindepth searchFolders
+  local filterCommand
+  local fileCount
+
+  format="raw"
+  ds=""
+  # Brute force parse since can be 0, 1, or 2 parameters.
+  if [ $# -gt 0 ]; then
+    if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
+      format="${1}"
+    else
+      ds=${1}
+    fi
+  fi
+  if [ $# -gt 1 ]; then
+    if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
+      format="${2}"
+    else
+      if [ -z "${ds}" ]; then
+        ds=${2}
+      fi
+    fi
+  fi
+  logDebug "format=${format}"
+  logDebug "ds=${ds}"
+  logDebug "testDatasetsFolder=${testDatasetsFolder}"
+
+  if [ -n "${ds}" ]; then
+    # Have a dataset:
+    # - search matching dataset folder
+    #searchFolders=$('ls' -1 ${testDatasetsFolder}/${ds}/exes | grep -v README.md | awk '{printf("  %s\n", $0)}')
+    #mindepth=1
+    #maxdepth=1
+    # Using 'ls' does not work because it omits the full path needed by 'find', so filter after the find.
+    searchFolders=${testDatasetsFolder}
+    mindepth=3
+    maxdepth=3
+    filterCommand="grep /${ds}/"
+  else
+    # Listing all combinations of dataset and comparisons:
+    # - used in main menu to list without being a part of any action such as remove
+    # - specify depth to get to the files under 'comps'
+    # - no additional filter after the find is needed since listing all datasets
+    searchFolders=${testDatasetsFolder}
+    mindepth=3
+    maxdepth=3
+    filterCommand="cat"
+  fi
+
+  # Can't use ls because too complicated to filter.
+  #'ls' -1 ${testDatasetsFolder}/* | grep -v ':' | grep -v '0-dataset' | grep -v -e '^$' | awk '
+  # Use find to only get subfolders:
+  # - 'find' will show folders like the following regardless of the starting folder and depth, but number of lines will be different:
+  #   /c/Users/sam/cdss-dev/StateCU/git-repos/cdss-app-statecu-fortran-test/test/datasets/cm2015_StateCU/exes/statecu-14.0.0-gfortran-win-64bit
+  find ${searchFolders} -mindepth ${mindepth} -maxdepth ${maxdepth} -type d | grep 'comps' | ${filterCommand} | awk -v format=${format} '
+     BEGIN {
+       line = 0
+     }
+     {
+       line = line + 1
+       # Split the long path and only print the last parts.
+       nparts = split($0, parts, "/")
+       if ( format == "numbered" ) {
+         # Print with line numbers and indent.
+         printf("  %d - %s/%s/%s\n", line, parts[nparts-2], parts[nparts-1], parts[nparts])
+       }
+       else if ( format == "indented" ) {
+         # Print with no line numbers and indent.
+         printf("  %s/%s/%s\n", parts[nparts-2], parts[nparts-1], parts[nparts])
+       }
+       else {
+         # Print with no line numbers and no indent.
+         printf("%s/%s/%s\n", parts[nparts-2], parts[nparts-1], parts[nparts])
+       }
+     }'
+
+  # Return the number of files:
+  # - use the same filters as above
+  # - mainly want to know if non-zero
+  fileCount=$(find ${searchFolders} -mindepth ${mindepth} -maxdepth ${mindepth} -type d | grep 'comps' | ${filterCommand} | wc -l)
+  return ${fileCount}
+}
+
+# List the time series in a comparison:
+# - the time series are taken from the TSTool CompareTimeSeries summary output file
+# - first or second parameter can be 'raw', 'numbered', or 'indented'
+# - first or second parameter can be the summary difference file
+# - return the number of time series
+listTestDatasetCompTimeSeries () {
+  local format summaryFile
+
+  format="raw"
+  summaryFile=""
+  # Brute force parse since can be 0, 1, or 2 parameters.
+  if [ $# -gt 0 ]; then
+    if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
+      format="${1}"
+    else
+      summaryFile=${1}
+    fi
+  fi
+  if [ $# -gt 1 ]; then
+    if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
+      format="${2}"
+    else
+      if [ -z "${ds}" ]; then
+        summaryFile=${2}
+      fi
+    fi
+  fi
+
+  if [ ! -f "${summaryFile}" ]; then
+    logWarning "Summary file does not exist:  ${summaryFile}"
+    return 0
+  fi
+
+  # Filter by # since it shows up in comments and also the header line.
+  # Include the TSID and description columns in output.
+  cat ${summaryFile} | grep -v '#' | awk -F'|' -v format=${format} '
+     BEGIN {
+       line = 0
+     }
+     {
+       line = line + 1
+       if ( format == "numbered" ) {
+         # Print with line numbers and indent.
+         printf("  %d - %s - %s\n", line, $5, $4)
+       }
+       else if ( format == "indented" ) {
+         # Print with no line numbers and with indent.
+         printf("  %s - %s\n", $5, $4)
+       }
+       else {
+         # Print with no line numbers and no indent.
+         printf("%s - %s\n", $5, $4)
+       }
+     }'
+
+  # Return the number of time series:
+  # - use the same filters as above
+  # - mainly want to know if non-zero
+  # - make sure to NOT check the return status in calling code
+  tsCount=$(cat ${summaryFile} | grep -v '#' | wc -l)
+  return ${tsCount}
+}
+
+# List test dataset comparisons.
+# The number can then be entered to select a comparison.
+# - specify the first parameter as:
+#     "numbered" to number and indent
+#     "indented" to indent
+#     "raw" no indent and no number
+# - return the number of comparisons
+x_listTestDatasetComps() {
+  local ds format searchFolder
+  local fileCount
+
+  format="raw"
+  ds=""
+  # Brute force parse since can be 0, 1, or 2 parameters.
+  if [ $# -gt 0 ]; then
+    if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
+      format="${1}"
+    else
+      ds=${1}
+    fi
+  fi
+  if [ $# -gt 1 ]; then
+    if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
+      format="${2}"
+    else
+      if [ -z "${ds}" ]; then
+        ds=${2}
+      fi
+    fi
+  fi
+
+  if [ -n "${ds}" ]; then
+    # Search specific dataset given a pattern.
+    searchFolder="${testDatasetsFolder}/${ds}/comps"
+  else
+    # Search the main dataset folder.
+    searchFolder="${testDatasetsFolder}/*/comps"
   fi
 
   logDebug "format=${format}"
@@ -228,14 +456,16 @@ x_ls_listTestDatasetVariants() {
     if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
       format="${1}"
     else
-      ds=$1
+      ds=${1}
     fi
   fi
   if [ $# -gt 1 ]; then
     if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
-      format="${1}"
+      format="${2}"
     else
-      ds=$2
+      if [ -z "${ds}" ]; then
+        ds=${2}
+      fi
     fi
   fi
   logDebug "format=${format}"
@@ -343,7 +573,9 @@ listTestDatasetVariants() {
     if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
       format="${2}"
     else
-      ds=${2}
+      if [ -z "${ds}" ]; then
+        ds=${2}
+      fi
     fi
   fi
   logDebug "format=${format}"
@@ -405,6 +637,71 @@ listTestDatasetVariants() {
   return ${fileCount}
 }
 
+# List test dataset variant scenarios, with no leading path:
+# - specify the first parameter as:
+#     "numbered" to number and indent
+#     "indented" to indent
+#     "raw" no indent and no number
+# - second parameter is the path to the StateCU folder
+# - return the number of scenarios
+# - this is used by TSTool when doing a comparison
+listTestDatasetVariantScenarios() {
+  local format searchFolder statecuFolder
+  local fileCount
+
+  format="raw"
+  statecuFolder=""
+  # Brute force parse since can be 0, 1, or 2 parameters.
+  if [ $# -gt 0 ]; then
+    if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
+      format="${1}"
+    else
+      statecuFolder=${1}
+    fi
+  fi
+  if [ $# -gt 1 ]; then
+    if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
+      format="${2}"
+    else
+      if [ -z "${ds}" ]; then
+        statecuFolder=${2}
+      fi
+    fi
+  fi
+
+  logDebug "format=${format}"
+
+  #'ls' -1 ${testDatasetsFolder}/${ds} | grep -v README.md | awk -v format=${format} '
+  'ls' -1 ${statecuFolder}/*.rcu | awk -v format=${format} -F/ '
+     BEGIN {
+       line = 0
+     }
+     {
+       line = line + 1
+       # Remove the file extension in the line.
+       sub(".rcu","",$NF)
+       if ( format == "numbered" ) {
+         # Print with line numbers and indent.
+         printf("  %d - %s\n", line, $NF)
+       }
+       else if ( format == "indented" ) {
+         # Print with no line numbers and with indent.
+         printf("  %s\n", $NF)
+       }
+       else {
+         # Print with no line numbers and no indent.
+         printf("%s\n", $NF)
+       }
+     }'
+
+  # Return the number of files:
+  # - use the same filters as above
+  # - mainly want to know if non-zero
+  # - make sure to NOT check the return status in calling code
+  fileCount=$('ls' -1 ${statecuFolder}/*.rcu | wc -l)
+  return ${fileCount}
+}
+
 # This version uses 'find' with the old folder structure - use the above simpler version with 'exes' folder.
 # List test dataset variants with line numbers.
 # The number can then be entered to select a dataset variant.
@@ -425,14 +722,16 @@ x_find_old_listTestDatasetVariants() {
     if [ "${1}" = "raw" -o "${1}" = "numbered" -o "${1}" = "indented" ]; then
       format="${1}"
     else
-      ds=$1
+      ds=${1}
     fi
   fi
   if [ $# -gt 1 ]; then
     if [ "${2}" = "raw" -o "${2}" = "numbered" -o "${2}" = "indented" ]; then
-      format="${1}"
+      format="${2}"
     else
-      ds=$2
+      if [ -z "${ds}" ]; then
+        ds=${2}
+      fi
     fi
   fi
   logDebug "format=${format}"
@@ -830,6 +1129,228 @@ newTestDataset() {
   return 0
 }
 
+# Create a new test dataset comparison:
+# - prompt for the dataset
+# - prompt for the executable
+newTestDatasetComp() {
+  local selectedDataset selectedDataset1 selectedDataset2 selectedDatasetNumber
+  local selectedExecutable selectedExecutableNumber
+  local datasetExesFolder
+
+  # Make sure that the program is not in a folder to be removed:
+  # - just change to the initial ${scriptFolder}
+  cd ${scriptFolder}
+
+  logText ""
+  logText "Create a new test dataset comparison (for two dataset variants)."
+  logText "The following will occur set up the comparison."
+  logText " - select two variants"
+  logText " - create a 'dataset/comps/variant1~variant2' folder"
+  logText " - the 'tstool-templates/*' files are copied to the 'comps' folder"
+  logText " - TSTool is started with the appropriate command file to run the comparison"
+  selectedDatasetVariant1=""
+  selectedDatasetVariant2=""
+  # Loop until have 2 selected dataset variants that are not the same.
+  while [ "1" = "1" ]; do
+    logText ""
+    logText "Available dataset variants (typically select the baseline variant as choice 1):"
+    logText ""
+    listTestDatasetVariants numbered
+    ndatasets=$?
+    if [ "${ndatasets}" -eq 0 ]; then
+      logInfo ""
+      logInfo "There are no dataset variants.  Need to create a test dataset variant in order to compare."
+      return 0
+    fi
+    logText ""
+    read -p "Select a dataset variant (#/q/ ): " selectedDatasetNumber
+    if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
+      exit 0
+    elif [ -z "${selectedDatasetNumber}" ]; then
+      # Don't want to continue.
+      return 0
+    else
+      # Selected a dataset variant - set in one of the two variables.
+      selectedDatasetVariant=$(listTestDatasetVariants | head -${selectedDatasetNumber} | tail -1)
+      if [ -z "${selectedDatasetVariant1}" ]; then
+        selectedDatasetVariant1=${selectedDatasetVariant}
+      elif [ -z "${selectedDatasetVariant2}" ]; then
+        selectedDatasetVariant2=${selectedDatasetVariant}
+      fi
+      logText ""
+      logText "Selected dataset variant (1): ${selectedDatasetVariant1}"
+      logText "Selected dataset variant (2): ${selectedDatasetVariant2}"
+      logText ""
+      if [ -z "${selectedDatasetVariant1}" -o -z "${selectedDatasetVariant2}" ]; then
+        # If one of the datasets is not selected, keep looping until 2 datasets are selected.
+        continue
+      elif [ "${selectedDatasetVariant1}" = "${selectedDatasetVariant2}" ]; then
+        # Datasets are the same:
+        # - unset one of the datasets so that it can be selected in the outer loop
+        while [ "1" = "1" ]; do
+          logWarning ""
+          logWarning "${warnColor}Both dataset variant names are the same.${endColor}"
+          read -p "Enter 1 or 2 to clear a selection (1/2/q/ ): " selectedDatasetNumber
+          if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
+            exit 0
+          elif [ "${selectedDatasetNumber}" = "1" ]; then
+            selectedDatasetVariant1=""
+            logText ""
+            logText "Selected dataset variant (1): ${selectedDatasetVariant1}"
+            logText "Selected dataset variant (2): ${selectedDatasetVariant2}"
+            logText ""
+            # Outer loop will print available variants.
+            break
+          elif [ "${selectedDatasetNumber}" = "2" ]; then
+            selectedDatasetVariant2=""
+            logText ""
+            logText "Selected dataset variant (1): ${selectedDatasetVariant1}"
+            logText "Selected dataset variant (2): ${selectedDatasetVariant2}"
+            logText ""
+            # Outer loop will print available variants.
+            break
+          fi
+        done
+      fi
+    fi
+    if [ -n "${selectedDatasetVariant1}" -a -n "${selectedDatasetVariant2}" -a "${selectedDatasetVariant1}" != "${selectedDatasetVariant2}" ]; then
+      # Have two datasets:
+      # - check that the dataset is the same.
+      # - main dataset is the first part of the selection, from a string like:
+      #     cm2015_StateCU/exes/statecu-14.0.0-gfortran-win-64bit
+      selectedDataset1=$(echo ${selectedDatasetVariant1} | cut -d '/' -f 1)
+      selectedDataset2=$(echo ${selectedDatasetVariant2} | cut -d '/' -f 1)
+      if [ "${selectedDataset1}" != "${selectedDataset2}" ]; then
+        logWarning ""
+        logWarning "${warnColor}The dataset is not the same for the two variants:${endColor}"
+        logWarning "${warnColor}  ${selectedDataset1}"
+        logWarning "${warnColor}  ${selectedDataset2}"
+        logWarning "${warnColor}Select two dataset variants that have the same dataset.${endColor}"
+        logWarning "${warnColor}Clearing the selections.${endColor}"
+        selectedDatasetVariant1=""
+        selectedDatasetVariant2=""
+        continue
+      else
+        # Have input to create the comparison.
+        break
+      fi
+    else
+      # Need to continue selecting datasets.
+      continue
+    fi
+
+    # Go to the top of the loop and continue selecting dataset variants.
+  done
+
+  # Confirm the selections.
+  logText ""
+  logText "Selected dataset variant (1): ${selectedDatasetVariant1}"
+  logText "Selected dataset variant (2): ${selectedDatasetVariant2}"
+  logText ""
+  read -p "Continue creating dataset comparison (Y/n/q)? " answer
+  # Define here since used in multiple places below.
+  selectedDataset="${testDatasetsFolder}/${selectedDataset1}"
+  compsFolder="${selectedDataset}/comps"
+  selectedDatasetVariantName1=$(echo ${selectedDatasetVariant1} | awk -F/ '{print $NF}')
+  selectedDatasetVariantName2=$(echo ${selectedDatasetVariant2} | awk -F/ '{print $NF}')
+  compFolder="${compsFolder}/${selectedDatasetVariantName1}~${selectedDatasetVariantName2}"
+  if [ "${answer}" = "q" -o "${answer}" = "Q" ]; then
+    exit 0
+  elif [ -z "${answer}" -o "${answer}" = "q" -o "${answer}" = "Q" ]; then
+    # Create the 'comps' folder under the dataset if it does not exist.
+    if [ ! -d "${compsFolder}" ]; then
+      mkdir ${compsFolder}
+      if [ $? -ne 0 ]; then
+        logWarning ""
+        logWarning "${warnColor}${endColor}Error creating dataset comparison folder:"
+        logWarning "  ${warnColor}${compsFolder}${endColor}"
+        logWarning "${warnColor}Check the script code.${endColor}"
+        return 1
+      fi
+    fi
+    # Create the specific comparison folder:
+    if [ -d "${compFolder}" ]; then
+      logInfo ""
+      logInfo "Dataset comparison folder exists:"
+      logInfo "  ${compFolder}:"
+      read -p "Replace (Y/n/q)? " answer
+      if [ "${answer}" = "q" -o "${answer}" = "Q" ]; then
+        exit 0
+      elif [ -z "${answer}" -o "${answer}" = "y" -o "${answer}" = "Y" ]; then
+        while [ "1" = "1" ]; do
+          logInfo ""
+          logInfo "Removing existing dataset comparison folder:"
+          logInfo "  ${compFolder}"
+          rm -rf "${compFolder}"
+          if [ -d "${compFolder}" ]; then
+            logWarning "${warnColor}Unable to remove folder:  ${testVariantFolder}${endColor}"
+            logWarning "${warnColor}File(s) may be open in software.  Check and retry.${endColor}"
+            read -p "Retry (Y/n/q)? " answer
+            if [ "${answer}" = "q" -o "${answer}" = "Q" ]; then
+              exit 0
+            elif [ "${answer}" = "y" -o "${answer}" = "Y" ]; then
+              continue
+            else
+              # Don't want to continue.
+              return 0
+            fi
+          else
+            logInfo "Success removing existing dataset comparison folder:"
+            logInfo "  ${compFolder}"
+            break
+          fi
+        done
+      fi
+    fi
+    if [ ! -d "${compFolder}" ]; then
+      # If here the comparison folder did not exist or was deleted so create.
+      logInfo ""
+      logInfo "Creating dataset comparison folder:"
+      logInfo "  ${compFolder}"
+      mkdir ${compFolder}
+      if [ $? -ne 0 ]; then
+        logWarning ""
+        logWarning "${warnColor}Error creating dataset variant comparison folder:${endColor}"
+        logWarning "  ${warnColor}${compFolder}${endColor}"
+        logWarning "${warnColor}Check the script code.${endColor}"
+        return 1
+      fi
+    fi
+    # Create a results folder for TSTool.
+    resultsFolder="${compFolder}/results"
+    mkdir ${resultsFolder}
+    if [ $? -ne 0 ]; then
+      logWarning ""
+      logWarning "${warnColor}Error creating comparison results folder:${endColor}"
+      logWarning "  ${warnColor}${resultsFolder}${endColor}"
+      logWarning "${warnColor}Check the script code.${endColor}"
+      return 1
+    fi
+    # Copy the TSTool template command file for running the comparison and visualizations:
+    # - currently, the templates are not modified
+    # - controlling properties are specified on the command line when running TSTool
+    tstoolFiles=( "compare-statecu-runs/compare-statecu-runs.tstool" "ts-diff/ts-diff.tstool" "ts-diff/ts-diff.csv" "ts-diff/ts-diff.tsp" )
+    for tstoolFile in "${tstoolFiles[@]}"; do
+      tstoolFile="${tstoolTemplatesFolder}/${tstoolFile}"
+      logInfo ""
+      logInfo "Copying TSTool command file:"
+      logInfo "  from: ${tstoolFile}"
+      logInfo "    to: ${compFolder}"
+      cp ${tstoolFile} ${compFolder}
+      if [ $? -eq 0 ]; then
+        logInfo "${okColor}  Success copying TSTool command file.${endColor}"
+      else
+        logWarning "${warnColor}  Failure copying TSTool command file - check script code.${endColor}"
+        return 1
+      fi
+    done
+  else
+    # Don't continue creating comparison.
+    return 0
+  fi
+  return 0
+}
+
 # Create a new test dataset variant:
 # - prompt for the dataset
 # - prompt for the executable
@@ -954,7 +1475,7 @@ newTestDatasetVariant() {
           logInfo "    to: ${testVariantFolder}"
           cp -r ${datasetFromFolder} ${testVariantFolder}
           if [ $? -eq 0 ]; then
-             logInfo "Success copying dataset files."
+             logInfo "${okColor}Success copying dataset files.${endColor}"
           else
              logWarning "${warnColor}Error copying dataset - check script code.${endColor}"
              return 1
@@ -1191,14 +1712,28 @@ printHelp() {
   # Compare
   # ==========================
   elif [[ "${command}" = "lsc"* ]]; then
-    logText "${menuColor}lsc${endColor}omp"
+    logText "${menuColor}lsc${endColor}omp [*dataset*]"
     logText ""
-    logText "List test dataset variant comparisons."
-    logText "Comparisons are saved in a folder named with dataset and executable names."
-  elif [[ "${command}" = "c"* ]]; then
-    logText "${menuColor}c${endColor}omp"
+    logText "With no argument, list all test datasets comparisons."
+    logText "With a dataset (e.g., cm2015_StateCU), list test dataset comparisons for the dataset."
+    logText "The 'dataset' can contain wildcards (e.g., *cm*)."
+  elif [[ "${command}" = "newc"* ]]; then
+    logText "${menuColor}newc${endColor}omp"
     logText ""
-    logText "Compare two dataset test variants, for example baseline and current version."
+    logText "Create a new comparison by copying TSTool template file and updating for the dataset."
+    logText "The comparison will need to be run using TSTool."
+    logText "Creating a new comparison only needs to be done once (not after every model run)."
+  elif [[ "${command}" = "runc"* ]]; then
+    logText "${menuColor}runc${endColor}omp"
+    logText ""
+    logText "Run TSTool to do the comparison."
+    logText "A comparison should be run after a model is (re)run to reflect changes in the model."
+    logText "See the output files for a detailed list and summary of differences."
+  elif [[ "${command}" = "v"* ]]; then
+    logText "${menuColor}v${endColor}heatmap"
+    logText ""
+    logText "Run TSTool to view a heatmap of differences for a time series."
+    logText "This is typically used to understand the details of differences."
   elif [[ "${command}" = "rmc"* ]]; then
     logText "${menuColor}rmc${endColor}omp"
     logText ""
@@ -1295,10 +1830,66 @@ removeTestDataset() {
     elif [ -z "${answer}" -o "${answer}" = "y" -o "${answer}" = "Y" ]; then
       rm -rf ${testDatasetFolder}
       if [ $? -eq 0 ]; then
-        logInfo "Successfully deleted dataset."
+        logInfo "${okColor}Successfully deleted dataset.${endColor}"
       else
-        logWarning "Error deleting dataset."
-        logWarning "Files may be opened in software or command line session may be in folder."
+        logWarning "${warnColor}Error deleting dataset.${endColor}"
+        logWarning "${warnColor}Files may be opened in software or command line session may be in folder.${endColor}"
+      fi
+    else
+      return 0
+    fi
+  fi
+  return 0
+}
+
+# Remove a test dataset comparison:
+# - prompt for the comparison
+# - this code is a copy of removeTestDatasetVariant() but uses 'comps' instead of 'exes'
+removeTestDatasetComp() {
+  local ndatasets selectedDataset selectedDatasetNumber
+
+  logText ""
+  logText "Remove a dataset comparison that matches an executable name."
+  logText "The following are available comparisons (~ is used in names to separate dataset and executable names)."
+  logText ""
+
+  listTestDatasetComps numbered
+  ndatasets=$?
+  if [ "${ndatasets}" -eq 0 ]; then
+    logInfo ""
+    logInfo "There are no test dataset comparisons."
+    return 0
+  fi
+
+  # Make sure that the program is not in a folder to be removed:
+  # - just change to the initial ${scriptFolder}
+  cd ${scriptFolder}
+
+  # The list will include dataset/variant.
+  logText ""
+  read -p "Select the number of the dataset comparison to remove (#/q/ ): " selectedDatasetNumber
+  if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
+    exit 0
+  elif [ -z "${selectedDatasetNumber}" ]; then
+    # Don't want to continue.
+    return
+  else
+    # Remove the dataset comparison.
+    selectedDataset=$(listTestDatasetComps | head -${selectedDatasetNumber} | tail -1)
+    logText "Selected dataset comparison: ${selectedDataset}"
+    testDatasetFolder="${testDatasetsFolder}/${selectedDataset}"
+    logText "Removing:"
+    logText "  ${testDatasetFolder}"
+    read -p "Confirm delete dataset comparison (Y/n/q)? " answer
+    if [ "${answer}" = "q" -o "${answer}" = "Q" ]; then
+      exit 0
+    elif [ -z "${answer}" -o "${answer}" = "y" -o "${answer}" = "Y" ]; then
+      rm -rf ${testDatasetFolder}
+      if [ ! -d "${testDatasetFolder}" ]; then
+        logInfo "${okColor}Successfully deleted dataset comparison.${endColor}"
+      else
+        logWarning "${warnColor}Error deleting dataset comparison.${endColor}"
+        logWarning "${warnColor}Files may be opened in software or command line session may be in folder.${endColor}"
       fi
     else
       return 0
@@ -1321,7 +1912,7 @@ removeTestDatasetVariant() {
   ndatasets=$?
   if [ "${ndatasets}" -eq 0 ]; then
     logInfo ""
-    logInfo "There are no test dataset variants.  Need to create a test dataset with executable variant."
+    logInfo "There are no test dataset variants."
     return 0
   fi
 
@@ -1350,10 +1941,10 @@ removeTestDatasetVariant() {
     elif [ -z "${answer}" -o "${answer}" = "y" -o "${answer}" = "Y" ]; then
       rm -rf ${testDatasetFolder}
       if [ $? -eq 0 ]; then
-        logInfo "Successfully deleted dataset variant."
+        logInfo "${okColor}Successfully deleted dataset variant.${endColor}"
       else
-        logWarning "Error deleting dataset variant."
-        logWarning "Files may be opened in software or command line session may be in folder."
+        logWarning "${warnColor}Error deleting dataset variant.${endColor}"
+        logWarning "${warnColor}Files may be opened in software or command line session may be in folder.${endColor}"
       fi
     else
       return 0
@@ -1388,10 +1979,10 @@ runInteractive () {
     ${echo2} ""
     ${echo2} "StateCU.....${menuColor}runs${endColor}tatecu             - run StateCU on a test dataset variant (dataset + executable)"
     ${echo2} ""
-    ${echo2} "Compare.....${menuColor}lsc${endColor}omp                 - list a test dataset comparison"
+    ${echo2} "Compare.....${menuColor}lsc${endColor}omp [*dataset*]     - list a test dataset comparison"
     ${echo2} "            ${menuColor}newc${endColor}omp                - create a comparison for 2 dataset test variants"
-    ${echo2} "            ${menuColor}runc${endColor}omp                - run a comparison using TSTool"
-    ${echo2} "            ${menuColor}v${endColor}iewomp                - view comparison of specific location "
+    ${echo2} "            ${menuColor}runc${endColor}omp                - run a comparison using TSTool (view difference reports from TSTool)"
+    ${echo2} "            ${menuColor}v${endColor}heatmap               - view a heatmap of time series differences"
     ${echo2} "            ${menuColor}rmc${endColor}omp                 - remove a comparison"
     ${echo2} "${lineEquals}"
     ${echo2} "            ${menuColor}q${endColor}uit"
@@ -1422,6 +2013,7 @@ runInteractive () {
         dataset=""
         logText "Test datasets:"
       fi
+      logText ""
       listTestDatasets indented ${dataset}
     elif [[ "${answer}" = "lsv"* ]]; then
       # List the datasets or the contents of a dataset's folder.
@@ -1436,13 +2028,14 @@ runInteractive () {
         dataset=""
         logText "Test dataset variants (dataset + executable) for all datasets:"
       fi
-      listTestDatasetVariantsFromMenu ${dataset}
+      logText ""
+      listTestDatasetVariants indented ${dataset}
     # ======================
     elif [[ "${answer}" = "newt"* ]]; then
       # Create a new test dataset:
       newTestDataset
     elif [[ "${answer}" = "newv"* ]]; then
-      # Create a new test dataset vaiant:
+      # Create a new test dataset variant:
       # - the test variant will match an executable name
       newTestDatasetVariant
     elif [[ "${answer}" = "rmt"* ]]; then
@@ -1469,6 +2062,33 @@ runInteractive () {
     # ======================
     # Compare
     # ======================
+    elif [[ "${answer}" = "lsc"* ]]; then
+      # List the dataset comparisons.
+      answerWordCount=$(echo ${answer} | wc -w)
+      logText ""
+      if [ "${answerWordCount}" -eq 2 ]; then
+        # Menu item followed by dataset name.
+        dataset=$(echo ${answer} | cut -d ' ' -f 2)
+        logText "Test dataset (${dataset}) comparisons:"
+      else
+        # Assume just menu item so default dataset.
+        dataset=""
+        logText "Test dataset comparisons for all datasets:"
+      fi
+      logText ""
+      listTestDatasetComps indented ${dataset}
+    elif [[ "${answer}" = "newc"* ]]; then
+      # Create a new test dataset comparison:
+      # - the comparison will match two variants
+      newTestDatasetComp
+    elif [[ "${answer}" = "runc"* ]]; then
+      # Run TSTool to create a dataset comparison.
+      runTestDatasetComp
+    elif [[ "${answer}" = "v"* ]]; then
+      # Run TSTool to create a heatmap visualization.
+      viewCompDifferenceHeatmap
+    elif [[ "${answer}" = "rmc"* ]]; then
+      removeTestDatasetComp
     # ======================
     # General commands
     # ======================
@@ -1494,6 +2114,143 @@ runInteractive () {
       echo "Don't know how to handle command:  ${answer}"
     fi
   done
+}
+
+# Run a test dataset comparison using TSTool.
+runTestDatasetComp() {
+  # Select a comparison to run.
+
+  logText ""
+  logText "Run a dataset variant comparison using TSTool."
+  logText ""
+
+  listTestDatasetComps numbered
+  ncomps=$?
+  if [ "${ncomps}" -eq 0 ]; then
+    logInfo ""
+    logInfo "There are no test dataset comparisons.  Need to create a test dataset comparison."
+    return 0
+  fi
+
+  # The list will include be of the form:
+  #   cm2015_StateCU/comps/x-statecu-14.0.0-gfortran-win-64bit~statecu-13.10-gfortran-win-32bit
+  logText ""
+  read -p "Select the number of the comparison to run (#/q/ ): " selectedCompNumber
+  if [ "${selectedCompNumber}" = "q" -o "${selectedCompNumber}" = "Q" ]; then
+    exit 0
+  elif [ -z "${selectedCompNumber}" ]; then
+    # Don't want to continue.
+    return
+  else
+    # Run the comparison.
+    selectedComp=$(listTestDatasetComps | head -${selectedCompNumber} | tail -1)
+    logText "Selected comparison: ${selectedComp}"
+    testCompFolder="${testDatasetsFolder}/${selectedComp}"
+    if [ ! -d "${testCompFolder}" ]; then
+      logWarning "Test dataset comp folder does not exist: ${testCompFolder}"
+      logWarning "Check script code."
+      logWarning "Cannot run comparison using TSTool."
+      return 1
+    fi
+
+    # Get the parts from the path needed for TSTool command file.
+    # - an example comparison folder path is:
+    #   /c/Users/sam/cdss-dev/StateCU/git-repos/cdss-app-statecu-fortran-test/test/datasets/cm2015_StateCU/comps/statecu-14.0.0-gfortran-win-64bit~statecu-13.10-gfortran-win-32bit
+    # - ${datasetName} is used for the StateCU "scenario" used for the response file name
+    # - ${datasetVariantName1} is used to determine the variant folder, with StateCU folder passed to TSTool
+    datasetName=$(echo ${testCompFolder} | awk -F/ '{print $(NF -2)}')
+    if [ -z "${datasetName}" ]; then
+      logWarning "${warnColor}Could not determine Scenario for TSTool.${endColor}"
+      return 1
+    fi
+
+    # Get the full path to dataset variants.
+
+    datasetVariantName1=$(echo ${testCompFolder} | awk -F/ '{print $NF}' | cut -d '~' -f 1)
+    datasetVariantFolder1=${testDatasetsFolder}/${datasetName}/exes/${datasetVariantName1}
+    if [ ! -d "${datasetVariantFolder1}" ]; then
+      logWarning "${warnColor}Could not determine Dataset1Folder for TSTool.${endColor}"
+      return 1
+    fi
+
+    datasetVariantName2=$(echo ${testCompFolder} | awk -F/ '{print $NF}' | cut -d '~' -f 2)
+    datasetVariantFolder2=${testDatasetsFolder}/${datasetName}/exes/${datasetVariantName2}
+    if [ ! -d "${datasetVariantFolder2}" ]; then
+      logWarning "${warnColor}Could not determine Dataset2Folder for TSTool.${endColor}"
+      return 1
+    fi
+
+    # Determine the StateCU folder, which contains the binary output and other files.
+    datasetStatecuFolder1=$(getTestDatasetVariantStatecuFolder ${datasetVariantFolder1})
+    if [ $? -ne 0 -o -z "${datasetStatecuFolder1}" ]; then
+      logWarning ""
+      logWarning "${warnColor}Unable to determine StateCU folder for dataset:${endColor}"
+      logWarning "${warnColor}  ${datasetVariantFolder1}${endColor}"
+      return 1
+    fi
+    datasetStatecuFolder2=$(getTestDatasetVariantStatecuFolder ${datasetVariantFolder2})
+    if [ $? -ne 0 -o -z "${datasetStatecuFolder2}" ]; then
+      logWarning ""
+      logWarning "${warnColor}Unable to determine StateCU folder for dataset:${endColor}"
+      logWarning "${warnColor}  ${datasetVariantFolder2}${endColor}"
+      return 1
+    fi
+
+    # Prompt for the response file to use for the scenario:
+    # - assuming that each folder contains the same dataset files, which should be true,
+    #   get the list of response files
+    logText ""
+    logText "Available scenarios for dataset ${datasetName}:"
+    logText ""
+    listTestDatasetVariantScenarios numbered ${datasetStatecuFolder1}
+    logText ""
+    read -p "Select a dataset scenario (#/q/ ): " selectedScenarioNumber
+    if [ "${selectedScenarioNumber}" = "q" -o "${selectedScenarioNumber}" = "Q" ]; then
+      exit 0
+    elif [ -z "${selectedScenarioNumber}" ]; then
+      # Don't want to continue.
+      return 0
+    else
+      # Have a scenario number.
+      selectedScenario=$(listTestDatasetVariantScenarios ${datasetStatecuFolder1} | head -${selectedScenarioNumber} | tail -1)
+    fi
+
+    logInfo "TSTool command line includes:  Dataset1Folder==${datasetStatecuFolder1}"
+    logInfo "TSTool command line includes:  Dataset2Folder==${datasetStatecuFolder2}"
+    logInfo "TSTool command line includes:  Scenario==${selectedScenario}"
+
+    tstoolCommandFile="${testCompFolder}/compare-statecu-runs.tstool"
+    logInfo ""
+    logInfo "Running comparison using TSTool command file:"
+    logInfo "  ${tstoolCommandFile}"
+    if [ ! -f "${tstoolCommandFile}" ]; then
+      logWarning ""
+      logWarning "${warnColor}TSTool command file does not exist:${endColor}"
+      logWarning "${warnColor}  ${tstoolCommandFile}${endColor}"
+      return 1
+    fi
+
+    # Run TSTool:
+    # - the executable location was determined at script startup
+    # - pass configuration properties in on the command line so that the template file can be used without modification
+    # - run in the background so can have multiple sessions/visualizations going at the same time,
+    #   although this does use more memory on the computer
+    # - checking the exit status on background processes may be tricky
+    if [ ! -f "${tstoolExe}" ]; then
+      logWarning ""
+      logWarning "${warnColor}TSTool program does not exist:${endColor}"
+      logWarning "${warnColor}${tstoolExe}${endColor}"
+      return 1
+    fi
+    logInfo "Running TSTool in the background so that other tasks can be run."
+    ${tstoolExe} -- ${tstoolCommandFile} Dataset1Folder==${datasetStatecuFolder1} Dataset2Folder==${datasetStatecuFolder2} Scenario==${selectedScenario}&
+    if [ $? -ne 0 ]; then
+      logWarning ""
+      logWarning "${warnColor}Error running TSTool.${endColor}"
+      return 1
+    fi
+  fi
+  return 0
 }
 
 # Run a test dataset variant:
@@ -1620,6 +2377,209 @@ runTestDatasetVariant() {
   return 0
 }
 
+# Set the path to the TSTool executable:
+# - the ${tstoolExe} variable can then be used to run TSTool
+# - since running in MinGW, use linux shell script to run TSTool,
+#   which is more flexible than the Windows TSTool.exe
+setTstoolExe() {
+  # Hard code for testing.
+  tstoolExe="/c/CDSS/TSTool-14.0.0.dev2/bin/tstool"
+  if [ ! -f "${tstoolExe}" ]; then
+    logWarning ""
+    logWarning "${warnColor}TSTool program does not exist:${endColor}"
+    logWarning "${warnColor}${tstoolExe}${endColor}"
+    return 1
+  else
+    return 0
+  fi
+}
+
+# View a heat map (raster graph) of time series differences
+viewCompDifferenceHeatmap() {
+  # Select a comparison to run.
+
+  logText ""
+  logText "View a time series difference heatmap using TSTool."
+  logText "Available dataset comparisons are listed below."
+  logText ""
+
+  listTestDatasetComps numbered
+  ncomps=$?
+  if [ "${ncomps}" -eq 0 ]; then
+    logInfo ""
+    logInfo "There are no test dataset comparisons.  Need to create a test dataset comparison."
+    return 0
+  fi
+
+  # The list will include be of the form:
+  #   cm2015_StateCU/comps/x-statecu-14.0.0-gfortran-win-64bit~statecu-13.10-gfortran-win-32bit
+  logText ""
+  read -p "Select the number of the comparison (#/q/ ): " selectedCompNumber
+  if [ "${selectedCompNumber}" = "q" -o "${selectedCompNumber}" = "Q" ]; then
+    exit 0
+  elif [ -z "${selectedCompNumber}" ]; then
+    # Don't want to continue.
+    return
+  else
+    # Run the comparison.
+    selectedComp=$(listTestDatasetComps | head -${selectedCompNumber} | tail -1)
+    logText "Selected comparison: ${selectedComp}"
+    testCompFolder="${testDatasetsFolder}/${selectedComp}"
+    if [ ! -d "${testCompFolder}" ]; then
+      logWarning "Test dataset comp folder does not exist: ${testCompFolder}"
+      logWarning "Check script code."
+      logWarning "Cannot run comparison using TSTool."
+      return 1
+    fi
+
+    # Get the parts from the path needed for TSTool command file.
+    # - an example comparison folder path is:
+    #   /c/Users/sam/cdss-dev/StateCU/git-repos/cdss-app-statecu-fortran-test/test/datasets/cm2015_StateCU/comps/statecu-14.0.0-gfortran-win-64bit~statecu-13.10-gfortran-win-32bit
+    # - ${datasetName} is used for the StateCU "scenario" used for the response file name
+    # - ${datasetVariantName1} is used to determine the variant folder, with StateCU folder passed to TSTool
+    datasetName=$(echo ${testCompFolder} | awk -F/ '{print $(NF -2)}')
+    if [ -z "${datasetName}" ]; then
+      logWarning "${warnColor}Could not determine Scenario for TSTool.${endColor}"
+      return 1
+    fi
+
+    # Get the full path to dataset variants.
+
+    datasetVariantName1=$(echo ${testCompFolder} | awk -F/ '{print $NF}' | cut -d '~' -f 1)
+    datasetVariantFolder1=${testDatasetsFolder}/${datasetName}/exes/${datasetVariantName1}
+    if [ ! -d "${datasetVariantFolder1}" ]; then
+      logWarning "${warnColor}Could not determine Dataset1Folder for TSTool.${endColor}"
+      return 1
+    fi
+
+    datasetVariantName2=$(echo ${testCompFolder} | awk -F/ '{print $NF}' | cut -d '~' -f 2)
+    datasetVariantFolder2=${testDatasetsFolder}/${datasetName}/exes/${datasetVariantName2}
+    if [ ! -d "${datasetVariantFolder2}" ]; then
+      logWarning "${warnColor}Could not determine Dataset2Folder for TSTool.${endColor}"
+      return 1
+    fi
+
+    # Determine the StateCU folder, which contains the binary output and other files.
+    datasetStatecuFolder1=$(getTestDatasetVariantStatecuFolder ${datasetVariantFolder1})
+    if [ $? -ne 0 -o -z "${datasetStatecuFolder1}" ]; then
+      logWarning ""
+      logWarning "${warnColor}Unable to determine StateCU folder for dataset:${endColor}"
+      logWarning "${warnColor}  ${datasetVariantFolder1}${endColor}"
+      return 1
+    fi
+    datasetStatecuFolder2=$(getTestDatasetVariantStatecuFolder ${datasetVariantFolder2})
+    if [ $? -ne 0 -o -z "${datasetStatecuFolder2}" ]; then
+      logWarning ""
+      logWarning "${warnColor}Unable to determine StateCU folder for dataset:${endColor}"
+      logWarning "${warnColor}  ${datasetVariantFolder2}${endColor}"
+      return 1
+    fi
+
+    # Prompt for the response file to use for the scenario:
+    # - assuming that each folder contains the same dataset files, which should be true,
+    #   get the list of response files
+    logText ""
+    logText "Available scenarios for dataset ${datasetName}:"
+    logText ""
+    listTestDatasetVariantScenarios numbered ${datasetStatecuFolder1}
+    logText ""
+    read -p "Select a dataset scenario (#/q/ ): " selectedScenarioNumber
+    if [ "${selectedScenarioNumber}" = "q" -o "${selectedScenarioNumber}" = "Q" ]; then
+      exit 0
+    elif [ -z "${selectedScenarioNumber}" ]; then
+      # Don't want to continue.
+      return 0
+    else
+      # Have a scenario number.
+      selectedScenario=$(listTestDatasetVariantScenarios ${datasetStatecuFolder1} | head -${selectedScenarioNumber} | tail -1)
+    fi
+
+    # Prompt for the time series to use for the visualization:
+    # - get the list from the TSTool CompareTimeSeries summary output file
+    logText ""
+    logText "Time series with differences for dataset ${datasetName}:"
+    logText ""
+    listTestDatasetCompTimeSeries numbered ${testCompFolder}/results/${selectedScenario}-summary-differences.txt
+    logText ""
+    read -p "Select a time series (#/q/ ): " selectedTsNumber
+    if [ "${selectedTsNumber}" = "q" -o "${selectedTsNumber}" = "Q" ]; then
+      exit 0
+    elif [ -z "${selectedTsNumber}" ]; then
+      # Don't want to continue.
+      return 0
+    else
+      # Have a scenario number.  Get the selected TSID.
+      selectedTsid=$(listTestDatasetCompTimeSeries ${testCompFolder}/results/${selectedScenario}-summary-differences.txt | head -${selectedTsNumber} | tail -1)
+    fi
+
+    # The following will break if data contain dashes.
+    logInfo "selecteTsid=${selectedTsid}"
+
+    # Trim surrounding whitespace but keep within values:
+    # - actually, replace inner spaces with ___ (3 underscores) because spaces in the command line cause issues
+    # - then use the TSTool --space-replacement command line option
+    tsid=$(echo ${selectedTsid} | awk -F- '{
+      sub(/^[ \t]+/,"",$1);
+      sub(/[ \t]+$/,"",$1);
+      print $1
+    }' | sed 's/ /___/g')
+    tsDescription=$(echo ${selectedTsid} | awk -F- '{
+      sub(/^[ \t]+/,"",$2);
+      sub(/[ \t]+$/,"",$2);
+      print $2
+    }' | sed 's/ /___/g')
+
+    logInfo "TSTool command line includes:  Scenario==${selectedScenario}"
+    logInfo "TSTool command line includes:  Description==${tsDescription}"
+    logInfo "TSTool command line includes:  TSID==${tsid}"
+
+    # Make sure the difference time series data file exists.
+    diffDataFile="${testCompFolder}/results/${selectedScenario}-ts-diff.dv"
+    if [ ! -f "${diffDataFile}" ]; then
+      logWarning ""
+      logWarning "${warnColor}Comparison difference data file does not exist:${endColor}"
+      logWarning "${warnColor}  ${diffDataFile}${endColor}"
+      logWarning "${warnColor}Make sure to run the comparison before trying to visualize results.${endColor}"
+      return 1
+    fi
+
+    # Run TSTool.
+
+    tstoolCommandFile="${testCompFolder}/ts-diff.tstool"
+    logInfo ""
+    logInfo "Running diff-ts visualization using TSTool command file:"
+    logInfo "  ${tstoolCommandFile}"
+    if [ ! -f "${tstoolCommandFile}" ]; then
+      logWarning ""
+      logWarning "${warnColor}TSTool command file does not exist:${endColor}"
+      logWarning "${warnColor}  ${tstoolCommandFile}${endColor}"
+      return 1
+    fi
+
+    # Run TSTool:
+    # - the executable location was determined at script startup
+    # - pass configuration properties in on the command line so that the template file can be used without modification
+    # - use the --space-replacement option
+    # - run in the background so can have multiple sessions/visualizations going at the same time,
+    #   although this does use more memory on the computer
+    # - checking the exit status on background processes may be tricky
+    if [ ! -f "${tstoolExe}" ]; then
+      logWarning ""
+      logWarning "${warnColor}TSTool program does not exist:${endColor}"
+      logWarning "${warnColor}${tstoolExe}${endColor}"
+      return 1
+    fi
+    logInfo "Running TSTool in the background so that other tasks can be run."
+    ${tstoolExe} -- ${tstoolCommandFile} --space-replacement='___' TSID=="${tsid}" Description=="${tsDescription}" Scenario=="${selectedScenario}" &
+    if [ $? -ne 0 ]; then
+      logWarning ""
+      logWarning "${warnColor}Error running TSTool.${endColor}"
+      return 1
+    fi
+  fi
+  return 0
+}
+
 # Entry point into the script.
 
 # Script location and name:
@@ -1642,8 +2602,18 @@ downloadsDatasetsFolder="${downloadsFolder}/datasets"
 downloadsExecutablesFolder="${downloadsFolder}/executables"
 testFolder="${testRepoFolder}/test"
 testDatasetsFolder="${testFolder}/datasets"
+tstoolTemplatesFolder="${testRepoFolder}/tstool-templates"
 
-logInfo "Important folders:"
+# Set the TSTool executable.
+setTstoolExe
+if [ $? -ne 0 ]; then
+  logWarning ""
+  logWarning "${warnColor}Could not determine path to TSTool executable.${endColor}"
+  logWarning "${warnColor}Won't be able to use TSTool for comparisons.${encColor}"
+  logWarning "${warnColor}Make sure that TSTool version 14.x is installed.${encColor}"
+fi
+
+logInfo "Important folders and files:"
 logInfo "scriptFolder=${scriptFolder}"
 logInfo "testRepoFolder=${testRepoFolder}"
 logInfo "downloadsFolder=${downloadsFolder}"
@@ -1651,6 +2621,8 @@ logInfo "downloadsDatasetsFolder=${downloadsDatasetsFolder}"
 logInfo "downloadsExecutablesFolder=${downloadsExecutablesFolder}"
 logInfo "testfolder=${testFolder}"
 logInfo "testDatasetsFolder=${testDatasetsFolder}"
+logInfo "tstoolTemplatesFolder=${tstoolTemplatesFolder}"
+logInfo "tstoolExe=${tstoolExe}"
 
 # Controlling variables.
 # Run mode for script ('batch' or 'interactive"):

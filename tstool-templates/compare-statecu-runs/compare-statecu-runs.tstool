@@ -1,13 +1,18 @@
-StartLog(LogFile="results/comp~statecu-14.0.0-gfortran-win-64bit~statecu-13.10-gfortran-win-32bit.tstool.log",MaxSize="100000000")
+StartLog(LogFile="results/compare-statecu-runs.tstool.log",MaxSize="100000000")
 # Template command file to compare two StateCU datasets:
 # - use properties for controlling information so that command can be easily modified
 # - there are 24 output parameters * nlocations = nts (number of time series)
 # - nts * nyears * 12 * 4bytes = approximate memory in byte for time series data
-SetProperty(PropertyName="RunStart",PropertyType=DateTime,PropertyValue="CurrentToSecond")
-SetProperty(PropertyName="Dataset1Folder",PropertyType=String,PropertyValue="../../statecu-14.0.0-gfortran-win-64bit/StateCU")
-SetProperty(PropertyName="Dataset2Folder",PropertyType=String,PropertyValue="../../statecu-13.10-gfortran-win-32bit/StateCU")
-SetProperty(PropertyName="Scenario",PropertyType=String,PropertyValue="cm2015")
+SetProperty(PropertyName="RunStartTime",PropertyType=DateTime,PropertyValue="CurrentToSecond")
+# Specify the location of model datasets:
+# - the following three lines can be enabled for troubleshooting
+# - the 'statecu-test.bash' script provides the folders using command line parameters:
+#     Dataset1Folder==xxx Dataset2Folder==xxx Scenario=xxx
+# SetProperty(PropertyName="Dataset1Folder",PropertyType=String,PropertyValue="../../exes/statecu-14.0.0-gfortran-win-64bit/StateCU")
+# SetProperty(PropertyName="Dataset2Folder",PropertyType=String,PropertyValue="../../exes/statecu-13.10-gfortran-win-32bit/StateCU")
+# SetProperty(PropertyName="Scenario",PropertyType=String,PropertyValue="cm2015")
 SetProperty(PropertyName="TSIDPattern",PropertyType=String,PropertyValue="*")
+# Use the following to process fewer time series for testing.
 # SetProperty(PropertyName="TSIDPattern",PropertyType=String,PropertyValue="*.*.Total Crop CU.*.*")
 # Read all of the time series matching the requested TSID pattern:
 # - can set to a subset for testing and then use "*" for full run
@@ -19,6 +24,16 @@ ReadStateCUB(InputFile="${Dataset2Folder}/${Scenario}.BD1",TSID="${TSIDPattern}"
 # - only create difference time series based on smallest criteria
 # - TODO smalers 2021-08-18 maybe need a way to compare based on significant digits
 CreateFolder(Folder="results",IfFolderExists=Ignore)
-CompareTimeSeries(MatchDataType=True,Tolerance="2,10,100,1000",CreateDiffTS=IfDifferent,DifferenceFile="results/allts-differences.txt",SummaryFile="results/summary-differences.txt",TableID="CompTable",DiffCountProperty="CompDiffCount",IfDifferent=Warn)
-SetProperty(PropertyName="RunEnd",PropertyType=DateTime,PropertyValue="CurrentToSecond")
-Message(Message="RunStart=${RunStart}, RunEnd=${RunEnd}")
+CompareTimeSeries(MatchDataType=True,Tolerance="2,10,100,1000",CreateDiffTS=IfDifferent,DifferenceFile="results/${Scenario}-allts-differences.txt",SummaryFile="results/${Scenario}-summary-differences.txt",TableID="CompTable",DiffCountProperty="CompDiffCount",IfDifferent=Warn)
+SetProperty(PropertyName="RunEndTime",PropertyType=DateTime,PropertyValue="CurrentToSecond")
+#
+# Save the difference time series data to a file so that visualization of specific time series
+# does not need to redo the comparison.
+# This may be an issue if the difference file is very large, in which case CompareTimeSeries could
+# be run on indivisual time series.
+# Maybe have a check on the number of difference time series and if too large don't write it.
+SelectTimeSeries(TSList=AllMatchingTSID,TSID="Diff_*",DeselectAllFirst=True)
+WriteDateValue(TSList=SelectedTS,OutputFile="results/${Scenario}-ts-diff.dv")
+#
+# Write information about the comparison run time, to evaluate performance.
+Message(Message="RunStartTime=${RunStartTime}, RunEndTime=${RunEndTime}")
