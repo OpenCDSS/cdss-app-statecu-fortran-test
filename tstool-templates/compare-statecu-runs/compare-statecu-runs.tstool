@@ -27,13 +27,16 @@ CreateFolder(Folder="results",IfFolderExists=Ignore)
 CompareTimeSeries(MatchDataType=True,Tolerance="2,10,100,1000",CreateDiffTS=IfDifferent,DifferenceFile="results/${Scenario}-allts-differences.txt",SummaryFile="results/${Scenario}-summary-differences.txt",TableID="CompTable",DiffCountProperty="CompDiffCount",IfDifferent=Warn)
 SetProperty(PropertyName="RunEndTime",PropertyType=DateTime,PropertyValue="CurrentToSecond")
 #
-# Save the difference time series data to a file so that visualization of specific time series
-# does not need to redo the comparison.
-# This may be an issue if the difference file is very large, in which case CompareTimeSeries could
-# be run on indivisual time series.
-# Maybe have a check on the number of difference time series and if too large don't write it.
-SelectTimeSeries(TSList=AllMatchingTSID,TSID="Diff_*",DeselectAllFirst=True)
+# Save the difference time series data to a file:
+# - this allows later visualization of specific time series without rerunning the comparison
+# - this may be an issue if the difference file is very large,
+#   in which case CompareTimeSeries may need to be run on individual time series
+# - maybe have a check on the number of difference time series and if too large don't write it
+# - OK to ignore if no files are selected, which indicates no differences
+SelectTimeSeries(TSList=AllMatchingTSID,TSID="Diff_*",DeselectAllFirst=True,IfNotFound=Ignore,SelectCountProperty="DiffTSCount")
+If(Name="If_HaveDiffTS",Condition="${DiffTSCount} > 0")
 WriteDateValue(TSList=SelectedTS,OutputFile="results/${Scenario}-ts-diff.dv")
+EndIf(Name="If_HaveDiffTS")
 #
 # Write information about the comparison run time, to evaluate performance.
 Message(Message="RunStartTime=${RunStartTime}, RunEndTime=${RunEndTime}")
