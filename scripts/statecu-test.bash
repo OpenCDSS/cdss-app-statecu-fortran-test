@@ -800,6 +800,88 @@ listTestDatasetVariantsFromMenu() {
   return 0
 }
 
+# List TSTool installation folders sorted by version number, oldest first:
+# - the newest is listed first
+# - sorting modifies the version in the installer path to force the correct order
+# - first parameter is the CDSS folder
+# - versions older than 14 will probably be listed with invalid filename do to removal of zero-padded parts
+# - version 14 is the first version to use non-zero-padded version and is required for this script,
+#   ignore all other versions
+listTstoolFolders() {
+  local cdssFolder
+  cdssFolder=${1}
+
+  if [ ! -d "${cdssFolder}" ]; then
+    # Probably should not have been called.  Output nothing.
+    logDebug "CDSS folder does not exist: ${cdssFolder}"
+    return 0
+  fi
+
+  find ${cdssFolder} -mindepth 1 -maxdepth 1 -type d -name 'TSTool*' | awk -v debug=${debug} '{
+    # Pad the software version in the listing with zeros to allow
+    # a correct numerical sort on the version parts.  Original listing is similar to:
+    #  /c/CDSS/TSTool-10.21.00
+    #  /c/CDSS/TSTool-12.03.00
+    #  /c/CDSS/TSTool-12.05.00
+    #  /c/CDSS/TSTool-12.06.00
+    #  /c/CDSS/TSTool-13.00.00
+    #  /c/CDSS/TSTool-13.00.00dev
+    #  /c/CDSS/TSTool-13.01.00
+    #  /c/CDSS/TSTool-13.01.01
+    #  /c/CDSS/TSTool-13.02.00
+    #  /c/CDSS/TSTool-13.02.00dev
+    #  /c/CDSS/TSTool-13.03.00dev
+    #  /c/CDSS/TSTool-13.04.00
+    #  /c/CDSS/TSTool-13.04.00.dev2
+    #  /c/CDSS/TSTool-14.0.0.dev1
+    if ( debug == "true" ) {
+      # Only do this when troubleshooting because it prints to the same stream as the output list.
+      #printf("[DEBUG] First awk input: %s\n", $0 )
+    }
+    # Split the path name by dash.
+    split($0,pathParts,"-")
+    # Version is second part.
+    version=pathParts[2]
+    # Split the version into parts:
+    nVersionParts=split(version,versionParts,".")
+    # There can be 3 or 4 parts:
+    # - pad each part to 3 digits
+    if ( nVersionParts == 3 ) {
+      # No fourth part:
+      # - fake a fourth part to force sort before "dev1", etc.
+      versionPadded=sprintf("%04d.%04d.%04d.zzz", versionParts[1], versionParts[2], versionParts[3] )
+    }
+    else {
+      versionPadded=sprintf("%04d.%04d.%04d.%s", versionParts[1], versionParts[2], versionParts[3], versionParts[4] )
+    }
+    printf("%s-%s\n", pathParts[1], versionPadded)
+  }' | sort -r | awk -v debug=${debug} '{
+    # Process the version back to the original non-padded numbers.  Input is like:
+    #  /c/CDSS/TSTool-0013.0002.0000
+    if ( debug == "true" ) {
+      #printf("Second awk input: %s\n", $0 )
+    }
+    # Split the path by dash.
+    split($0,pathParts,"-")
+    # Version is second part.
+    version=pathParts[2]
+    # Split the version into parts:
+    # - version, for example: 0001.0013.0000
+    nVersionParts=split(version,versionParts,".")
+    # There should always be 4 parts.
+    if ( versionParts[4] == "zzz" ) {
+      # Remove the dummy fourth part.
+      versionUnpadded=sprintf("%d.%d.%d", versionParts[1], versionParts[2], versionParts[3] )
+    }
+    else {
+      # Keep the dummy fourth part.
+      versionUnpadded=sprintf("%d.%d.%d.%s", versionParts[1], versionParts[2], versionParts[3], versionParts[4] )
+    }
+    printf("%s-%s\n", pathParts[1], versionUnpadded)
+  }'
+  return 0
+}
+
 # ========================================================================================
 # Start the logging functions:
 # - code is currently maintained with the 'nsdataws' script
@@ -890,13 +972,14 @@ echoStderr() {
 # - if an error, echo "" to stdout and return 1
 # - if success, the folder is echoed to stdout and return 0
 getTestDatasetVariantStatecuFolder() {
-  local statecuFolder testVariantFolder
+  local statecuFolder testVariantExesFolder testVariantParentOfExesFolder
 
   if [ $# -lt 1 ]; then
     logWarning "Can't determine test dataset StateCU folder."
     echo ""
     return 1
   fi
+
   testVariantFolder=$1
   if [ ! -d "${testVariantFolder}" ]; then
     logWarning "Test dataset variant folder does not exist:"
@@ -906,7 +989,13 @@ getTestDatasetVariantStatecuFolder() {
     return 1
   fi
 
+  logDebug "Test dataset variant folder: ${testVariantFolder}"
+  testVariantExesFolder=$(dirname ${testVariantFolder})
+  testVariantParentOfExesFolder=$(dirname ${testVariantExesFolder})
+  logDebug "Main dataset folder for test variant: ${testVariantParentOfExesFolder}"
+  
   # Try case where StateCU folder exists in the top of the dataset folder.
+  # - for example:  cm2015_StateCU/exes/statecu-14.0.0-gfortran-win-64bit
   statecuFolder="${testVariantFolder}/StateCU"
   if [ -d "${statecuFolder}" ]; then
     logInfo ""
@@ -915,10 +1004,11 @@ getTestDatasetVariantStatecuFolder() {
     echo "${statecuFolder}"
     return 0
   else
-    # Try the subfolder in the datset:
+    # Try the subfolder in the dataset:
+    # - for example:  SP2016_StateCU_modified/exes/statecu-14.0.0-gfortran-win-64bit/SP2016_StateCU_modified/StateCU
     # - the subfolder name has typically matched the zip file name but this is not guaranteed
     # - could do a "find" but want to ensure some consistency
-    statecuFolder="${testVariantFolder}/$(basename ${testDatasetFolder})/StateCU"
+    statecuFolder="${testVariantFolder}/$(basename ${testVariantParentOfExesFolder})/StateCU"
     if [ -d "${statecuFolder}" ]; then
       logInfo ""
       logInfo "StateCU folder is in first sub-folder of dataset:"
@@ -926,7 +1016,7 @@ getTestDatasetVariantStatecuFolder() {
       echo "${statecuFolder}"
       return 0
     else
-      logWarning
+      logWarning ""
       logWarning "Unable to determine StateCU folder in dataset:"
       logWarning "  ${testVariantFolder}"
       logWarning "Need to check script code to handle more dataset organization cases."
@@ -1153,7 +1243,7 @@ newTestDatasetComp() {
   # Loop until have 2 selected dataset variants that are not the same.
   while [ "1" = "1" ]; do
     logText ""
-    logText "Available dataset variants (typically select the baseline variant as choice 1):"
+    logText "Available dataset variants:"
     logText ""
     listTestDatasetVariants numbered
     ndatasets=$?
@@ -1163,6 +1253,9 @@ newTestDatasetComp() {
       return 0
     fi
     logText ""
+    logText "Two dataset variants need to be selected for a comparison."
+    logText "${menuColor}Select each number separately${endColor} by responding to two prompts."
+    logText "Typically the baseline variant is selected first."
     read -p "Select a dataset variant (#/q/ ): " selectedDatasetNumber
     if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
       exit 0
@@ -1178,8 +1271,8 @@ newTestDatasetComp() {
         selectedDatasetVariant2=${selectedDatasetVariant}
       fi
       logText ""
-      logText "Selected dataset variant (1): ${selectedDatasetVariant1}"
-      logText "Selected dataset variant (2): ${selectedDatasetVariant2}"
+      logText "Selected dataset variant (1): ${okColor}${selectedDatasetVariant1}${endColor}"
+      logText "Selected dataset variant (2): ${okColor}${selectedDatasetVariant2}${endColor}"
       logText ""
       if [ -z "${selectedDatasetVariant1}" -o -z "${selectedDatasetVariant2}" ]; then
         # If one of the datasets is not selected, keep looping until 2 datasets are selected.
@@ -1196,16 +1289,16 @@ newTestDatasetComp() {
           elif [ "${selectedDatasetNumber}" = "1" ]; then
             selectedDatasetVariant1=""
             logText ""
-            logText "Selected dataset variant (1): ${selectedDatasetVariant1}"
-            logText "Selected dataset variant (2): ${selectedDatasetVariant2}"
+            logText "Selected dataset variant (1): ${okColor}${selectedDatasetVariant1}${endColor}"
+            logText "Selected dataset variant (2): ${okColor}${selectedDatasetVariant2}${endColor}"
             logText ""
             # Outer loop will print available variants.
             break
           elif [ "${selectedDatasetNumber}" = "2" ]; then
             selectedDatasetVariant2=""
             logText ""
-            logText "Selected dataset variant (1): ${selectedDatasetVariant1}"
-            logText "Selected dataset variant (2): ${selectedDatasetVariant2}"
+            logText "Selected dataset variant (1): ${okColor}${selectedDatasetVariant1}${endColor}"
+            logText "Selected dataset variant (2): ${okColor}${selectedDatasetVariant2}${endColor}"
             logText ""
             # Outer loop will print available variants.
             break
@@ -1243,6 +1336,8 @@ newTestDatasetComp() {
   done
 
   # Confirm the selections.
+  logText ""
+  logText "The following dataset variants have been selected:"
   logText ""
   logText "Selected dataset variant (1): ${selectedDatasetVariant1}"
   logText "Selected dataset variant (2): ${selectedDatasetVariant2}"
@@ -1470,7 +1565,7 @@ newTestDatasetVariant() {
           # Copy the dataset.
           datasetFromFolder="${testDatasetFolder}/0-dataset"
           logInfo ""
-          logInfo "Copying dataset files:"
+          logInfo "Copying dataset files (may be slow if a large dataset):"
           logInfo "  from: ${datasetFromFolder}"
           logInfo "    to: ${testVariantFolder}"
           cp -r ${datasetFromFolder} ${testVariantFolder}
@@ -1979,10 +2074,10 @@ runInteractive () {
     ${echo2} ""
     ${echo2} "StateCU.....${menuColor}runs${endColor}tatecu             - run StateCU on a test dataset variant (dataset + executable)"
     ${echo2} ""
-    ${echo2} "Compare.....${menuColor}lsc${endColor}omp [*dataset*]     - list a test dataset comparison"
+    ${echo2} "Compare.....${menuColor}lsc${endColor}omp [*dataset*]     - list test dataset comparisons"
     ${echo2} "            ${menuColor}newc${endColor}omp                - create a comparison for 2 dataset test variants"
-    ${echo2} "            ${menuColor}runc${endColor}omp                - run a comparison using TSTool (view difference reports from TSTool)"
-    ${echo2} "            ${menuColor}v${endColor}heatmap               - view a heatmap of time series differences"
+    ${echo2} "            ${menuColor}runc${endColor}omp                - run a dataset variant scenario comparison using TSTool"
+    ${echo2} "            ${menuColor}v${endColor}heatmap               - view a heatmap for a time series' differences"
     ${echo2} "            ${menuColor}rmc${endColor}omp                 - remove a comparison"
     ${echo2} "${lineEquals}"
     ${echo2} "            ${menuColor}q${endColor}uit"
@@ -2118,12 +2213,16 @@ runInteractive () {
 
 # Run a test dataset comparison using TSTool.
 runTestDatasetComp() {
+  local doBackground
+
   # Select a comparison to run.
 
   logText ""
   logText "Run a dataset variant comparison using TSTool."
-  logText ""
 
+  logText ""
+  logText "Available dataset variant comparisons (you will be prompted for a scenario):"
+  logText ""
   listTestDatasetComps numbered
   ncomps=$?
   if [ "${ncomps}" -eq 0 ]; then
@@ -2144,7 +2243,7 @@ runTestDatasetComp() {
   else
     # Run the comparison.
     selectedComp=$(listTestDatasetComps | head -${selectedCompNumber} | tail -1)
-    logText "Selected comparison: ${selectedComp}"
+    logText "Selected dataset variant comparison: ${selectedComp}"
     testCompFolder="${testDatasetsFolder}/${selectedComp}"
     if [ ! -d "${testCompFolder}" ]; then
       logWarning "Test dataset comp folder does not exist: ${testCompFolder}"
@@ -2242,12 +2341,25 @@ runTestDatasetComp() {
       logWarning "${warnColor}${tstoolExe}${endColor}"
       return 1
     fi
-    logInfo "Running TSTool in the background so that other tasks can be run."
-    ${tstoolExe} -- ${tstoolCommandFile} Dataset1Folder==${datasetStatecuFolder1} Dataset2Folder==${datasetStatecuFolder2} Scenario==${selectedScenario}&
-    if [ $? -ne 0 ]; then
-      logWarning ""
-      logWarning "${warnColor}Error running TSTool.${endColor}"
-      return 1
+
+    doBackground="true"
+    if [ "${doBackground}" = "true" ]; then
+      logInfo "${menuColor}Running TSTool in the background so that other tasks can be run.${endColor}"
+      logInfo "${menuColor}TSTool messages may be written as it runs.${endColor}"
+      logInfo "${menuColor}If necessary, press return to view the menu.${endColor}"
+      # Give a little time to see the above.
+      sleep 1
+      ${tstoolExe} -- ${tstoolCommandFile} Dataset1Folder==${datasetStatecuFolder1} Dataset2Folder==${datasetStatecuFolder2} Scenario==${selectedScenario}&
+      # Can't get the return status here.
+      return 0
+    else
+      logInfo "${menuColor}Running TSTool before continuing.${endColor}"
+      ${tstoolExe} -- ${tstoolCommandFile} Dataset1Folder==${datasetStatecuFolder1} Dataset2Folder==${datasetStatecuFolder2} Scenario==${selectedScenario}
+      if [ $? -ne 0 ]; then
+        logWarning ""
+        logWarning "${warnColor}Error running TSTool.${endColor}"
+        return 1
+      fi
     fi
   fi
   return 0
@@ -2264,6 +2376,7 @@ runTestDatasetVariant() {
 
   logText ""
   logText "Run a dataset variant that matches an executable name."
+  logText "All scenarios (*.rcu) for the dataset variant will be run."
   logText "Available dataset variants:"
   logText ""
 
@@ -2381,21 +2494,91 @@ runTestDatasetVariant() {
 # - the ${tstoolExe} variable can then be used to run TSTool
 # - since running in MinGW, use linux shell script to run TSTool,
 #   which is more flexible than the Windows TSTool.exe
+# - multiple drives are searched to find TSTool
+# - if someone has installed in a nonstandard location that will be a problem
 setTstoolExe() {
-  # Hard code for testing.
-  tstoolExe="/c/CDSS/TSTool-14.0.0.dev2/bin/tstool"
-  if [ ! -f "${tstoolExe}" ]; then
-    logWarning ""
-    logWarning "${warnColor}TSTool program does not exist:${endColor}"
-    logWarning "${warnColor}${tstoolExe}${endColor}"
-    return 1
-  else
-    return 0
+  local cdssFolder cdssFolderCount
+  local drive driveList
+  local tstoolFolder tstoolFolderCount
+  local majorVersion tstoolExeTry
+
+  # Uncomment the following to hard code for testing:
+  # - this is the linux run script, which works in MinGW environment
+  #tstoolExe="/c/CDSS/TSTool-14.0.0.dev2/bin/tstool"
+
+  # Initialize.
+
+  tstoolExe=""
+
+  # Use for troubleshooting.
+  #logInfo "Test listing:"
+  #cdssFolder="/C/CDSS"
+  #listTstoolFolders ${cdssFolder}
+
+  # CDSS software may be installed on drives other than /C so loop through to find TSTool.
+  driveList=( c d e f g h i j k l m n o p q r s t u v w x y z)
+  cdssFolderCount=0
+  for drive in "${driveList[@]}"; do
+    cdssFolder="/${drive}/CDSS"
+    logInfo "Searching for TSTool in: ${cdssFolder}"
+    if [ -d "${cdssFolder}" ]; then
+      # Have a CDSS folder that MIGHT contain TSTool:
+      # - it could also just be a project or data folder
+      # - increment the counter so can do a warning at the end
+      cdssFolderCount=$((${cdssFolderCount} + 1))
+
+      # Don't know for sure what the latest TSTool version is:
+      # - if there are at least one that matches the pattern, then assume CDSS software location is found
+      tstoolFolderCount=$(listTstoolFolders ${cdssFolder} 2> /dev/null | wc -l)
+      if [ ${tstoolFolderCount} -ne 0 ]; then
+        # Have something:
+        # - assume this is where CDSS TSTool is installed
+        # - get the newest version
+        # - have to list by padding the version parts to ensure that 001 comes before 011
+        # - won't check any other versions
+        
+        tstoolFolder=$(listTstoolFolders ${cdssFolder} 2> /dev/null | head -1)
+        logInfo "tstoolFolder=${tstoolFolder}"
+
+        # Make sure that the version is at least 14 (or whatever is required for the current script version):
+        # - the listing output is similar to:
+        #      /c/CDSS/TSTool-14.0.0.dev2
+        #      /c/CDSS/TSTool-13.04.00
+        # - check the major version part
+        majorVersion=$(echo ${tstoolFolder} | cut -d '-' -f 2 | cut -d '.' -f 1)
+        logInfo "majorVersion=${majorVersion}"
+        if [ "${majorVersion}" -ge 14 ]; then
+          # OK to use, else may not have any valid versions at the end.
+          tstoolExeTry="${tstoolFolder}/bin/tstool"
+          if [ -f "${tstoolExeTry}" ]; then
+            # Found the executable:
+            # - set it in global data
+            tstoolExe=${tstoolExeTry}
+            logInfo "TSTool executable is: ${tstoolExe}"
+            return 0
+          else
+            logDebug "TSTool program does not exist:"
+            logDebug "  ${tstoolExeTry}"
+          fi
+        fi
+      fi
+    fi
+  done
+
+  if [ "${cdssFolderCount}" -eq 0 ]; then
+    logError ""
+    logError "${errorColor}Cannot find installed TSTool software - exiting.${endColor}"
+    logError "${errorColor}Install TSTool version 14+ to use this script.${endColor}"
+    logError "${errorColor}If CDSS software is installed in a nonstandard location,${endColor}"
+    logError "${errorColor}contact support to update this script.${endColor}"
+    exit 1
   fi
 }
 
 # View a heat map (raster graph) of time series differences
 viewCompDifferenceHeatmap() {
+  local doBackground
+
   # Select a comparison to run.
 
   logText ""
@@ -2569,12 +2752,25 @@ viewCompDifferenceHeatmap() {
       logWarning "${warnColor}${tstoolExe}${endColor}"
       return 1
     fi
-    logInfo "Running TSTool in the background so that other tasks can be run."
-    ${tstoolExe} -- ${tstoolCommandFile} --space-replacement='___' TSID=="${tsid}" Description=="${tsDescription}" Scenario=="${selectedScenario}" &
-    if [ $? -ne 0 ]; then
-      logWarning ""
-      logWarning "${warnColor}Error running TSTool.${endColor}"
-      return 1
+
+    doBackground="true"
+    if [ "${doBackground}" = "true" ]; then
+      ${tstoolExe} -- ${tstoolCommandFile} --space-replacement='___' TSID=="${tsid}" Description=="${tsDescription}" Scenario=="${selectedScenario}" &
+      logInfo "${menuColor}Running TSTool in the background so that other tasks can be run.${endColor}"
+      logInfo "${menuColor}TSTool messages may be written as it runs.${endColor}"
+      logInfo "${menuColor}If necessary, press return to view the menu.${endColor}"
+      # Give a little time to see the above.
+      sleep 1
+      # Can't get the return status here.
+      return 0
+    else
+      logInfo "${menuColor}Running TSTool before continuing.${endColor}"
+      ${tstoolExe} -- ${tstoolCommandFile} --space-replacement='___' TSID=="${tsid}" Description=="${tsDescription}" Scenario=="${selectedScenario}"
+      if [ $? -ne 0 ]; then
+        logWarning ""
+        logWarning "${warnColor}Error running TSTool.${endColor}"
+        return 1
+      fi
     fi
   fi
   return 0
@@ -2589,7 +2785,7 @@ scriptFolder=$(cd $(dirname "$0") && pwd)
 scriptName=$(basename $0)
 # The following works whether or not the script name has an extension.
 scriptNameNoExt=$(echo ${scriptName} | cut -d '.' -f 1)
-version="1.0.0 2021-08-14"
+version="1.1.0 2021-08-31"
 
 # Configure the echo command for colored output:
 # - do this up front because results are used in messages
@@ -2604,15 +2800,6 @@ testFolder="${testRepoFolder}/test"
 testDatasetsFolder="${testFolder}/datasets"
 tstoolTemplatesFolder="${testRepoFolder}/tstool-templates"
 
-# Set the TSTool executable.
-setTstoolExe
-if [ $? -ne 0 ]; then
-  logWarning ""
-  logWarning "${warnColor}Could not determine path to TSTool executable.${endColor}"
-  logWarning "${warnColor}Won't be able to use TSTool for comparisons.${encColor}"
-  logWarning "${warnColor}Make sure that TSTool version 14.x is installed.${encColor}"
-fi
-
 logInfo "Important folders and files:"
 logInfo "scriptFolder=${scriptFolder}"
 logInfo "testRepoFolder=${testRepoFolder}"
@@ -2622,7 +2809,6 @@ logInfo "downloadsExecutablesFolder=${downloadsExecutablesFolder}"
 logInfo "testfolder=${testFolder}"
 logInfo "testDatasetsFolder=${testDatasetsFolder}"
 logInfo "tstoolTemplatesFolder=${tstoolTemplatesFolder}"
-logInfo "tstoolExe=${tstoolExe}"
 
 # Controlling variables.
 # Run mode for script ('batch' or 'interactive"):
@@ -2635,6 +2821,16 @@ debug="false"
 
 # Parse the command line.
 parseCommandLine $@
+
+# Set the TSTool executable:
+# - do this after parsing because need to handle --debug
+# - the following will exit because TSTool is fundamental to testing
+setTstoolExe
+if [ -z "${tstoolExe}" ]; then
+  # The above call should have handled everything but keep this code here for now.
+  logError "${errorColor}Could not find TSTool executable 14+.  Exiting.${endColor}"
+  logError "${errorColor}Need to install TSTool 14+.${endColor}"
+fi
 
 if [ "${command}" = "" ]; then
   # Command was not requested so run interactively.
