@@ -1,0 +1,14 @@
+# Symbol table for time series differences.
+# The ranges match the CompareTimeSeries thresholds.
+# Show negative range in same colors as positive.
+valueMin,  valueMax, color,   opacity, fillColor, fillOpacity, comment
+-Infinity, <-1000,   #ff0000, 1.0,     #ff0000,   1.0,         red
+>=-1000,   <-100,    #ffa500, 1.0,     #ffa500,   1.0,         orange
+>=-100,    <-10,     #ffff00, 1.0,     #ffff00,   1.0,         yellow
+>=-10,     <-2,      #00ffff, 1.0,     #00ffff,   1.0,         cyan
+>=-2,      <2,       #00ff00, 1.0,     #00ff00,   1.0,         green
+>=2,       <10,      #00ffff, 1.0,     #00ffff,   1.0,         cyan
+>=10,      <100,     #ffff00, 1.0,     #ffff00,   1.0,         yellow
+>=100,     <1000,    #ffa500, 1.0,     #ffa500,   1.0,         orange
+>=1000,    Infinity, #ff0000, 1.0,     #ff0000,   1.0,         red
+NoData,    NoData,   #ffffff, 1.0,     #ffffff,   1.0,         white

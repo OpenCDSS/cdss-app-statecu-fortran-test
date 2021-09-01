@@ -1,0 +1,12 @@
+# Use a generic log file name so as to not fill up the disk with many log files.
+StartLog(LogFile="results/ts-diff.tstool.log")
+# Display a heatmap showing the difference between matching time series in two dataset variants.
+# The difference time series will have been saved in previous run.
+#
+# Uncomment the following three commands to test.
+# Comment out to use as a template where the properties are set on TSTool command line.
+#SetProperty(PropertyName="TSID",PropertyType=String,PropertyValue="Diff_TOTAL.StateCU.Potential Crop ET.Month")
+#SetProperty(PropertyName="Scenario",PropertyType=String,PropertyValue="cm2015")
+#SetProperty(PropertyName="Description",PropertyType=String,PropertyValue="cm2015 Total")
+ReadTimeSeries(TSID="Diff_${TSID}~DateValue~results/${Scenario}-ts-diff.dv",Alias="%L-%T-%I",IfNotFound=Warn)
+ProcessRasterGraph(TSProductFile="ts-diff.tsp")
