@@ -7,14 +7,14 @@ for more information.
 * [Background](#background)
 * [Repository Contents](#repository-contents)
 * [Getting Started](#getting-started)
-  1. [Clone Repository](#clone-repository]
-  2. [`statecu-test.bash` Script](#statecu-test.bash-script)
+  1. [Clone Repository](#clone-repository)
+  2. [`statecu-test.bash` Script](#statecu-testbash-script)
 * [Overview of Test Process](#overview-of-test-process)
-	1. [Download Files and Install Datasets and Executables](#1download-files-and-install-datasets-and-executables)
-  2. [Create New Test Dataset Variant](#2create-new-test-dataset-variant)
-  3. [Run StateCU to Generate Output](#3run-staetcu-to-generate-output)
-  4. [Create a Comparison](#4create-a-comparison)
-  5. [Run a Comparison and Visualize Results](#5run-a-comparison-and-visualize-results)
+  1. [Download Files and Install Datasets and Executables](#download-files-and-install-datasets-and-executables)
+  2. [Create New Test Dataset Variant](#create-new-test-dataset-variant)
+  3. [Run StateCU to Generate Output](#run-staetcu-to-generate-output)
+  4. [Create a Comparison](#create-a-comparison)
+  5. [Run a Comparison and Visualize Results](#run-a-comparison-and-visualize-results)
 * [Future Enhancements](#future-enhancements)
 
 -----------------
@@ -194,7 +194,7 @@ test/
             cm2015-ts-diff.*
 ```
 
-ALthough a number of permutations may always be run before a software release
+Although a number of permutations may always be run before a software release
 as part of a release checklist,
 it is likely that a software developer will
 focus on a dataset of interest in day-to-day work,
@@ -205,8 +205,13 @@ Comparing full datasets does provide check-off for major milestones,
 such as migrating from 32-bit to 64-bit compiler.
 
 The following sections describe the mechanics of performing testing.
+Note that once the folder structure has been established,
+test datasets can be deleted and recreated as appropriate,
+and updated files can be copied into the folders as appropriate.
 
-### 1. Download Files and Install Dasets and Executables
+### Download Files and Install Datasets and Executables
+
+**Execute this step when new versions of datasets and executables are available.**
 
 This repository contains the `downloads` folder and TSTool command files
 to download StateCU datasets.
@@ -226,7 +231,9 @@ The dataset files are then available to copy into folders for an executable,
 to run for testing.
 The `0-dataset` files should not be modified.
 
-### 2. Create New Test Dataset Variant
+### Create New Test Dataset Variant
+
+**Execute this step when a new comparison is necessary.**
 
 The previous step creates a `0-dataset` folder that is copied to create a test dataset.
 A test dataset is referred to as a "variant" because it contains a
@@ -243,7 +250,9 @@ The selected executable is copied to the dataset `StateCU` folder.
 A separate folder is necessary for each variant to fully isolate the dataset from another executable.
 This ensures that there is no mixing of test results.
 
-### 3. Run StateCU to Generate Output
+### Run StateCU to Generate Output
+
+**Execute this step when a new dataset or StateCU executable has been installed.**
 
 The StateCU executable in the test dataset is run using one of the following methods:
 
@@ -251,7 +260,9 @@ The StateCU executable in the test dataset is run using one of the following met
 Run the executable in the folder.
 2. Use the `statecu-test.bash` script's `runstatecu` command to select and run a dataset.
 
-### 4. Create a Comparison
+### Create a Comparison
+
+**Execute this step to create a new comparison, for example when new executable is available.**
 
 The StateCU output from the previous step is used to compare the output
 of one test dataset variant with another.
@@ -263,7 +274,10 @@ which contains a comparison of the two dataset.
 TSTool command files are provided to compare the binary output files,
 which form the bulk of the results.
 
-### 5. Run a Comparison and Visualize Results
+### Run a Comparison and Visualize Results
+
+**Execute this step frequently to (re)create comparison and review results.
+For example, this can be run during development to evaluate how changes in software are impacting simulations.**
 
 Use the `statecu-test.bash` script's `runcomp` command to create a comparison.
 Output text files can be used to review the frequency and magnitude of differences.
