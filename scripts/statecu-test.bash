@@ -33,7 +33,7 @@ listDownloadDatasets() {
        line = line + 1
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s\n", line, $0)
+         printf("  %4d - %s\n", line, $0)
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and indent.
@@ -59,35 +59,60 @@ listDownloadDatasets() {
 #     "numbered" to number and indent
 #     "indented" to indent
 #     "raw" no indent and no number
-# - TODO smalers 2021-08-18 may allow specifying a pattern to match for executable names
+# - the output is the zip file main folder and zip file, for example:
+#   statecu-cdss-14.0.0/statecu-14.0.0-gfortran-win-64bit.exe
 listDownloadExecutables() {
   local format
   local fileCount
+  local maxdepth mindepth
 
   format="raw"
   if [ $# -gt 0 ]; then
     format="${1}"
   fi
 
-  'ls' -1 ${downloadsExecutablesFolder} | grep -v README.md | awk -v format=${format} '
+  mindepth=2
+  maxdepth=2
+
+  # Use 'find' because there is more control:
+  # - 'find' output will look like:
+  #    /c/Users/sam/cdss-dev/StateCU/git-repos/cdss-app-statecu-fortran-test/downloads/executables/statecu-cdss-13.10/statecu-13.10-gfortran-win-32bit.exe
+  #    /c/Users/sam/cdss-dev/StateCU/git-repos/cdss-app-statecu-fortran-test/downloads/executables/statecu-cdss-14.0.0/statecu-14.0.0-gfortran-win-64bit.exe
+  #      
+  # 'ls' -1 ${downloadsExecutablesFolder}/*/statecu*.exe | grep -v README.md | awk -v format=${format} '
+  find ${downloadsExecutablesFolder} -mindepth ${mindepth} -maxdepth ${maxdepth} -type f -name 'statecu*.exe' | grep -v 'check' | awk -v format=${format} '
      BEGIN {
        line = 0
      }
      {
        line = line + 1
+       # Split the long path and only print the last parts.
+       nparts = split($0, parts, "/")
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s\n", line, $0)
+         printf("  %2d - %s/%s\n", line, parts[nparts-1], parts[nparts])
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and indent.
-         printf("  %s\n", $0)
+         printf("  %s/%s\n", parts[nparts-1], parts[nparts])
        }
        else {
          # Print with no line numbers and no indent.
-         printf("%s\n", $0)
+         printf("%s/%s\n", parts[nparts-1], parts[nparts])
        }
-
+       # TODO smalers 2021-09-05 old output used with 'ls'.  Now use 'find'.
+       #if ( format == "numbered" ) {
+       #  # Print with line numbers and indent.
+       #  printf("  %d - %s\n", line, $0)
+       #}
+       #else if ( format == "indented" ) {
+       #  # Print with no line numbers and indent.
+       #  printf("  %s\n", $0)
+       #}
+       #else {
+       #  # Print with no line numbers and no indent.
+       #  printf("%s\n", $0)
+       #}
      }'
 
   # Return the number of files:
@@ -190,7 +215,7 @@ listTestDatasets() {
        line = line + 1
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s\n", line, $0)
+         printf("  %2d - %s\n", line, $0)
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and with indent.
@@ -285,7 +310,7 @@ listTestDatasetComps() {
        nparts = split($0, parts, "/")
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s/%s/%s\n", line, parts[nparts-2], parts[nparts-1], parts[nparts])
+         printf("  %4d - %s/%s/%s\n", line, parts[nparts-2], parts[nparts-1], parts[nparts])
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and indent.
@@ -347,7 +372,7 @@ listTestDatasetCompTimeSeries () {
        line = line + 1
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s - %s\n", line, $5, $4)
+         printf("  %4d - %s - %s\n", line, $5, $4)
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and with indent.
@@ -417,7 +442,7 @@ x_listTestDatasetComps() {
        line = line + 1
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s\n", line, $0)
+         printf("  %4d - %s\n", line, $0)
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and with indent.
@@ -525,7 +550,7 @@ x_ls_listTestDatasetVariants() {
        line = line + 1
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s\n", line, $0)
+         printf("  %4d - %s\n", line, $0)
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and indent.
@@ -618,7 +643,7 @@ listTestDatasetVariants() {
        nparts = split($0, parts, "/")
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s/%s/%s\n", line, parts[nparts-2], parts[nparts-1], parts[nparts])
+         printf("  %4d - %s/%s/%s\n", line, parts[nparts-2], parts[nparts-1], parts[nparts])
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and indent.
@@ -682,7 +707,7 @@ listTestDatasetVariantScenarios() {
        sub(".rcu","",$NF)
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s\n", line, $NF)
+         printf("  %4d - %s\n", line, $NF)
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and with indent.
@@ -762,7 +787,7 @@ x_find_old_listTestDatasetVariants() {
        nparts = split($0, parts, "/")
        if ( format == "numbered" ) {
          # Print with line numbers and indent.
-         printf("  %d - %s/%s\n", line, parts[nparts-1], parts[nparts])
+         printf("  %4d - %s/%s\n", line, parts[nparts-1], parts[nparts])
        }
        else if ( format == "indented" ) {
          # Print with no line numbers and indent.
@@ -800,11 +825,11 @@ listTestDatasetVariantsFromMenu() {
   return 0
 }
 
-# List TSTool installation folders sorted by version number, oldest first:
+# List TSTool installation folders sorted by version number:
 # - the newest is listed first
 # - sorting modifies the version in the installer path to force the correct order
 # - first parameter is the CDSS folder
-# - versions older than 14 will probably be listed with invalid filename do to removal of zero-padded parts
+# - versions older than 14 will probably be listed with invalid filename due to removal of zero-padded parts
 # - version 14 is the first version to use non-zero-padded version and is required for this script,
 #   ignore all other versions
 listTstoolFolders() {
@@ -1224,7 +1249,6 @@ newTestDataset() {
 # - prompt for the executable
 newTestDatasetComp() {
   local selectedDataset selectedDataset1 selectedDataset2 selectedDatasetNumber
-  local selectedExecutable selectedExecutableNumber
   local datasetExesFolder
 
   # Make sure that the program is not in a folder to be removed:
@@ -1451,7 +1475,7 @@ newTestDatasetComp() {
 # - prompt for the executable
 newTestDatasetVariant() {
   local selectedDataset selectedDatasetNumber
-  local selectedExecutable selectedExecutableNumber
+  local selectedExecutable selectedExecutableNumber selectedExecutableNoDir selectedExecutableNoExt
   local datasetExesFolder
 
   # Make sure that the program is not in a folder to be removed:
@@ -1535,15 +1559,18 @@ newTestDatasetVariant() {
             fi
           fi
 
-          # Select an executable to copy.
+          # Select an executable to copy:
+          # - initial value has the zip file folder and executable name
           selectedExecutable=$(listDownloadExecutables | head -${selectedExecutableNumber} | tail -1)
+          selectedExecutableNoDir=$(echo ${selectedExecutable} | cut -d '/' -f 2)
           logText "Selected executable: ${selectedExecutable}"
-          # TODO smalers 2021-08-17 need to make sure this works on Linux where extensions will not be used.
-          selectedExecutableNoExt=${selectedExecutable%.*}
+          # Remove the '.exe' extension:
+          # - TODO smalers 2021-08-17 need to make sure this works on Linux where extensions will not be used
+          selectedExecutableNoExt=${selectedExecutableNoDir%.*}
           testVariantFolder="${testDatasetFolder}/exes/${selectedExecutableNoExt}"
           if [ -d "${testVariantFolder}" ]; then
             logWarning ""
-            logWarning "Dataset test exists:"
+            logWarning "Dataset test variant exists:"
             logWarning "  ${testVariantFolder}:"
             read -p "Replace (Y/n/q)? " answer
             if [ "${answer}" = "q" -o "${answer}" = "Q" ]; then
@@ -1570,9 +1597,9 @@ newTestDatasetVariant() {
           logInfo "    to: ${testVariantFolder}"
           cp -r ${datasetFromFolder} ${testVariantFolder}
           if [ $? -eq 0 ]; then
-             logInfo "${okColor}Success copying dataset files.${endColor}"
+             logInfo "${okColor}  Success copying dataset files.${endColor}"
           else
-             logWarning "${warnColor}Error copying dataset - check script code.${endColor}"
+             logWarning "${warnColor}  Error copying dataset - check script code.${endColor}"
              return 1
           fi
           # Copy the executable:
@@ -1586,6 +1613,7 @@ newTestDatasetVariant() {
             logWarning "Unable to create new test dataset variant."
             return 1
           else
+            # The following handles a parent folder for executable.
             executableFrom=${downloadsExecutablesFolder}/${selectedExecutable}
             statecuExecutable=${statecuFolder}/$(basename ${executableFrom})
             nchars=$(echo ${statecuExecutable} | wc -c)
@@ -1600,18 +1628,18 @@ newTestDatasetVariant() {
             logInfo "    to: ${statecuExecutable}"
             cp "${executableFrom}" "${statecuExecutable}"
             if [ $? -eq 0 ]; then
-               logInfo "Success copying executable file."
+               logInfo "${okColor}  Success copying executable file.${endColor}"
                # Also set the permissions to executable.
                logInfo "Setting StateCU program file permissions to executable (need in linux environments)."
                chmod a+x ${statecuExecutable} 2> /dev/null
                if [ $? -ne 0 ]; then
-                 logWarning "${warnColor}Error setting executable permissions:${endColor}"
-                 logWarning "${warnColor}  ${statecuExecutable}${endColor}"
-                 logWarning "${warnColor}Check script code.${endColor}"
+                 logWarning "${warnColor}  Error setting executable permissions:${endColor}"
+                 logWarning "${warnColor}    ${statecuExecutable}${endColor}"
+                 logWarning "${warnColor}  Check script code.${endColor}"
                fi
                return 0
             else
-               logWarning "${warnColor}Error copying executable - check script code.${endColor}"
+               logWarning "${warnColor}  Error copying executable - check script code.${endColor}"
                return 1
             fi
           fi
@@ -2090,6 +2118,9 @@ runInteractive () {
     if [[ "${answer}" = "lsdd"* ]]; then
       listDownloadDatasets indented
     elif [[ "${answer}" = "lsde"* ]]; then
+      logText ""
+      logText "Available executables, which can be copied when creating a new test dataset variant:"
+      logText ""
       listDownloadExecutables indented
     # ======================
     # Test Datasets
@@ -2785,7 +2816,7 @@ scriptFolder=$(cd $(dirname "$0") && pwd)
 scriptName=$(basename $0)
 # The following works whether or not the script name has an extension.
 scriptNameNoExt=$(echo ${scriptName} | cut -d '.' -f 1)
-version="1.1.0 2021-08-31"
+version="1.2.0 2021-09-06"
 
 # Configure the echo command for colored output:
 # - do this up front because results are used in messages

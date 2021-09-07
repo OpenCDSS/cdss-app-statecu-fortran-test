@@ -1,0 +1,19 @@
+# Download and unzip statecu-cdss-14.0.0 executable:
+# - download from the OpenCDSS website
+#
+# =====================================================================
+# Download executable:
+# - use the same local file as if the download was performed manually
+# - the zip file name is not as verbose as the executable files
+# - as of 2021-09-05 the zip file is 1.9 MB
+SetProperty(PropertyName="DownloadZipFile",PropertyType=String,PropertyValue="executable-zips/statecu-cdss-14.0.0.zip")
+# Download is a simple URL resource file.
+WebGet(URI="https://opencdss.state.co.us/statecu/14.0.0/software/statecu-cdss-14.0.0.zip",LocalFile="${DownloadZipFile}",ResponseCodeProperty="WebGetHttpCode")
+CheckFile(InputFile="${DownloadZipFile}",IfNotFound="Fail",Statistic="FileSizeBytes",CheckCriteria="<",CheckValue1=1000000,IfCriteriaMet=Fail,CheckResultPropertyName="DownloadStatus",CriteriaMetPropertyValue="Failure",CriteriaNotMetPropertyValue="Success")
+If(Name="If_DownloadOK",Condition="${DownloadStatus} == Failure")
+Message(Message="Download failed.  Exiting without unzipping.",CommandStatus=FAILURE)
+Exit()
+EndIf(Name="If_DownloadOK")
+# Unzip to the 'downloads/executables' folder for use in StateCU dataset testing:
+# - the zip file contains standard file names so overwrite if anything already exists
+UnzipFile(InputFile="${DownloadZipFile}",OutputFolder="executables")

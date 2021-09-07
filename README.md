@@ -12,13 +12,15 @@ for more information.
   2. [Clone Repository](#clone-repository)
   3. [Install TSTool](#install-tstool)
   4. [`statecu-test.bash` Script](#statecu-testbash-script)
-* [Overview of Test Process](#overview-of-test-process)
+* [Testing Quick Checklist](#testing-quick-checklist)
+* [Overview of the Testing Process](#overview-of-the-testing-process)
   1. [Download Files and Install Datasets and Executables](#download-files-and-install-datasets-and-executables)
   2. [Create New Test Dataset Variant](#create-new-test-dataset-variant)
   3. [Run StateCU to Generate Output](#run-statecu-to-generate-output)
   4. [Create a Comparison](#create-a-comparison)
   5. [Run a Comparison and Visualize Results](#run-a-comparison-and-visualize-results)
 * [Future Enhancements](#future-enhancements)
+* [Release Notes](#release-notes)
 
 -----------------
 
@@ -164,9 +166,36 @@ To run the script, `cd` to the repository's `scripts` folder and then run:
 The script will present an interactive menu to execute testing tasks,
 as described in the sections below.
 
-## Overview of Test Process
+## Testing Quick Checklist
 
-The following sections describe the overall test process.
+The next section [Overview of the Testing Process](#overview-of-the-testing-process) provides an overview of the testing process.
+The following checklist is an abbreviated list of typical testing workflow.
+Long commands are shown but the shorter equivalent can be used in the `statecu-test` menu.
+
+1. Use TSTool to run command files in the `downloads` folder to download StateCU datasets and softare executables.
+Downloads only need to be processed if new downloads are available.
+2. Run the `scripts/statecu-test.bash` script from a MSys2 64-bit MinGW window.
+An interactive menu provides commands to help with testing.
+    1. First `cd scripts`.  Then `./statecu-test.bash`.
+    2. Use `lstest`, `lsvariant`, and `lscomp` to list existing tests and comparisons.
+    3. If necessary, use `rmtest`, `rmvariant`, and `rmcomp` commands to remove old files, for example to free up disk space.
+    4. At any time, use `help command` (where `command` is a menu command) to see a short help note.
+    5. Use the `newvariant` command to create a new test dataset variant,
+    which involves selecting a dataset and executable.
+    6. Use the `runstatecu` command to run the dataset.
+    All scenarios in the dataset will be run.
+    7. Use `newcomp` to create a new comparison by selecting two
+    test dataset variants.
+    This only initializes files for the comparison but does not perform the analysis.
+    8. Use the `runcomp` command to run TSTool and create a summary of all differences.
+    Select the output files from TSTool results to review differences.
+    9. Use the `vheatmap` command to run TSTool to view a heatmap of the differences for one time series.
+
+Repeat steps as necessary based on changes to datasets and executables.
+
+## Overview of the Testing Process
+
+The following sections describe the overall testing process.
 The following terminology is used throughout the repository,
 listed in order that drills down into the testing process.
 
@@ -316,3 +345,14 @@ Although the framework includes some automation,
 the process does currently require some interactive tasks and review
 using the `test-statecu.bash` script.
 The existing testing framework features can be leverated to increase automation.
+
+## Release Notes
+
+The following are release notes for the StateCU testing framework,
+which mainly involves changes to the `statecu-test.bash` script.
+
+| **Version** | **Release Notes** |
+| -- | -- |
+| 1.2.0 | Added TSTool command files to download StateCU software zip file. |
+| 1.1.0 | Updated the `statecu-test.bash` script to create and run comparisons.  Moved test dataset variants into an `exes` folder in each dataset. |
+| 1.0.0 | Initial version of testing framework. |
