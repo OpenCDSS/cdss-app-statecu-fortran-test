@@ -36,6 +36,8 @@ season.csv
 # Downloads.
 /downloads/datasets/*
 !/downloads/datasets/README.md
+/downloads/executable-zips/*
+!/downloads/executable-zips/README.md
 /downloads/executables/*
 !/downloads/executables/README.md
 
