@@ -118,7 +118,7 @@ This section provides brief instructions for getting started with testing.
 ### Set up StateCU Development Environment
 
 The StateCU tests are run in a MinGW environment that is the same as used for StateCU development
-(and is the same envrionment that is used for StateMod development and testing).
+(and is the same environment that is used for StateMod development and testing).
 Therefore, follow the documentation for
 [setting up a StateCU development environment](https://opencdss.state.co.us/statecu/latest/doc-dev/dev-new/overview/).
 
@@ -176,7 +176,7 @@ Long commands are shown but the shorter equivalent can be used in the `statecu-t
 Downloads only need to be processed if new downloads are available.
 2. Run the `scripts/statecu-test.bash` script from a MSys2 64-bit MinGW window.
 An interactive menu provides commands to help with testing.
-    1. First `cd scripts`.  Then `./statecu-test.bash`.
+    1. First `cd scripts`.  Then run `./statecu-test.bash`.
     2. Use `lstest`, `lsvariant`, and `lscomp` to list existing tests and comparisons.
     3. If necessary, use `rmtest`, `rmvariant`, and `rmcomp` commands to remove old files, for example to free up disk space.
     4. At any time, use `help command` (where `command` is a menu command) to see a short help note.
@@ -212,7 +212,7 @@ listed in order that drills down into the testing process.
 | comparison | The results from comparing two test dataset variants. The `comps` folder under a test dataset contains comparisons, using a folder name `datasetvariant~datasetvariant2` for comparison results (e.g., `cm2015_StateCU/comps/statecu-14.0.0-gfortran-win-64bit~statecu-3.10-gfortran-win-32bit`). |
 | binary output file | StateCU writes time series output to a `*.BD1` file extension file, which contains time series input and output. These time series are the data of interest when comparing results. |
 | time series comparison | The comparison of two dataset variants focuses on comparing the time series from the binary output files.  The TSTool software is used to compare matching time series from two dataset variants and differences are noted in the comparison output files. Comparisons are made using criteria such as tolerance in order to ignore noise such as roundoff. |
-| output file comparison | It is also possible to compare output text files, such as StateCU report files.  This approach is not currently implemented in StateCU tests because time series comparison provides a more granular result. |
+| output file comparison | It is also possible to compare output text files, such as StateCU report files.  This approach is not currently implemented in StateCU full dataset tests because time series comparison provides a more granular result. |
 
 Although it may be ideal to perform as many comparisons as possible to confirm software performance and results,
 the number of permutations requires time resources, which has a cost.
@@ -249,7 +249,7 @@ Comparing full published datasets and their scenarios provides check-off for maj
 such as migrating from 32-bit to 64-bit compiler,
 and making sure there are no major bugs in software updates.
 
-StateCU include options in the control file (`*.ccu`) that can be used to vary the analysis.
+StateCU datasets include options in the control file (`*.ccu`) that can be used to vary the analysis.
 This testing framework does not currently try to exercise those options on full datasets.
 Smaller tests can be created to verify specific software features.
 
