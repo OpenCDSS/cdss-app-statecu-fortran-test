@@ -1279,7 +1279,7 @@ newTestDatasetComp() {
     logText ""
     logText "Two dataset variants need to be selected for a comparison."
     logText "${menuColor}Select each number separately${endColor} by responding to two prompts."
-    logText "Typically the baseline variant is selected first."
+    logText "Typically the baseline (older) variant is selected first."
     read -p "Select a dataset variant (#/q/ ): " selectedDatasetNumber
     if [ "${selectedDatasetNumber}" = "q" -o "${selectedDatasetNumber}" = "Q" ]; then
       exit 0
@@ -2381,6 +2381,8 @@ runTestDatasetComp() {
       # Give a little time to see the above.
       sleep 1
       ${tstoolExe} -- ${tstoolCommandFile} Dataset1Folder==${datasetStatecuFolder1} Dataset2Folder==${datasetStatecuFolder2} Scenario==${selectedScenario}&
+      # Sleep so that TSTool can start and then the menu will show again.
+      sleep 1
       # Can't get the return status here.
       return 0
     else
@@ -2786,11 +2788,13 @@ viewCompDifferenceHeatmap() {
 
     doBackground="true"
     if [ "${doBackground}" = "true" ]; then
-      ${tstoolExe} -- ${tstoolCommandFile} --space-replacement='___' TSID=="${tsid}" Description=="${tsDescription}" Scenario=="${selectedScenario}" &
       logInfo "${menuColor}Running TSTool in the background so that other tasks can be run.${endColor}"
       logInfo "${menuColor}TSTool messages may be written as it runs.${endColor}"
       logInfo "${menuColor}If necessary, press return to view the menu.${endColor}"
       # Give a little time to see the above.
+      sleep 1
+      ${tstoolExe} -- ${tstoolCommandFile} --space-replacement='___' TSID=="${tsid}" Description=="${tsDescription}" Scenario=="${selectedScenario}" &
+      # Sleep so that TSTool can start and then the menu will show again.
       sleep 1
       # Can't get the return status here.
       return 0
@@ -2816,7 +2820,7 @@ scriptFolder=$(cd $(dirname "$0") && pwd)
 scriptName=$(basename $0)
 # The following works whether or not the script name has an extension.
 scriptNameNoExt=$(echo ${scriptName} | cut -d '.' -f 1)
-version="1.2.0 2021-09-06"
+version="1.2.1 2021-10-04"
 
 # Configure the echo command for colored output:
 # - do this up front because results are used in messages
