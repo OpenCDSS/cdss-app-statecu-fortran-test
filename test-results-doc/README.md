@@ -40,15 +40,15 @@ The number of time series impacts the run time.
 | `gm2015_StateCU` | `gm2015B` | 13200 | 150 | < 94 | Used 14.0.1. | smalers |
 | `NP2018_StateCU_modified` | `NP2018` | 10080 | 0 | | | smalers |
 | `NP2018_StateCU_modified` | `NP2018B` | 10080 | 0 | | | smalers |
-| `RG2012_StateCU` | `rg2012` | 54316 | 1286 | < 1900 | `TOTAL` is largest | smalers |
-| `RG2012_StateCU` | `rg2012_FactorSoUMeter`  | 54316 | 1191 | < 14720 | `DIST20.Sw Soil Content` is largest  | smalers |
-| `RG2012_StateCU` | `rg2012_NoQ` | 54316 | 908 | < 1670 | | smalers |
-| `RG2012_StateCU` | `rg2012_SoU` | 54316 | 1430 | < 13300 | `TOTAL SW Soil Content` is largest | smalers |
+| `RG2012_StateCU` | `rg2012` | 27158 | 1286 | < 1900 | `TOTAL` is largest | smalers |
+| `RG2012_StateCU` | `rg2012_FactorSoUMeter`  | 27158 | 1191 | < 14720 | `DIST20.Sw Soil Content` is largest  | smalers |
+| `RG2012_StateCU` | `rg2012_NoQ` | 27158 | 908 | < 1670 | | smalers |
+| `RG2012_StateCU` | `rg2012_SoU` | 27158 | 1430 | < 13300 | `TOTAL SW Soil Content` is largest | smalers |
 | `sj2015_StateCU` | `sj2015` | 7488 | 201 | < 70 | | smalers |
-| `sj2015_StateCU` | `sj2015B` | 1560 | 51 | < 137 | Used 14.0.1.  **Why are there fewer locations?** | smalers |
-| `SP2016_StateCU_modified` | `SP2016` | 26784 | 104 | < 11000 | `0100503_I River Diversion` is largest | smalers |
-| `SP2016_StateCU_modified` | `SP2016_Restricted` | 26784 | 1201 | < 11000 | `0100503_I River Diversion` is largest | smalers |
+| `sj2015_StateCU` | `sj2015B` | 1560 | 51 | < 137 | Used 14.0.1.  **Note fewer locations than `sj2015` scenario.** | smalers |
+| `SP2016_StateCU_modified` | `SP2016` | 13764 | 1759 | < 184 | Used 14.0.1. | smalers |
+| `SP2016_StateCU_modified` | `SP2016_Restricted` | 13764  | 2080 | < 3078 | Used 14.0.1.  | smalers |
 | `wm2015_StateCU` | `wm2015` | 6720 | 18 | < 3 | | smalers |
-| `wm2015_StateCU` | `wm2015B` | 6720 | 0 | 0 | | Used 14.0.1. No differences. | smalers |
-| `ym2015_StateCU` | `ym2015` | 14688| 35 | < 7 | | smalers |
-| `ym2015_StateCU` | `ym2015B` | 1530 | 4 | < 3 | Used 14.0.1. | smalers |
+| `wm2015_StateCU` | `wm2015B` | 6720 | 0 | 0 | Used 14.0.1. No differences. | smalers |
+| `ym2015_StateCU` | `ym2015` | 7344 | 35 | < 7 | | smalers |
+| `ym2015_StateCU` | `ym2015B` | 1530 | 4 | < 3 | Used 14.0.1. **Note fewer locations than `ym2015` scenario.** | smalers |
